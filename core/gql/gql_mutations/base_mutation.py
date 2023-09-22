@@ -185,7 +185,7 @@ class BaseHistoryModelCreateMutationMixin:
         if "client_mutation_label" in data:
             data.pop('client_mutation_label')
         created_object = cls.create_object(user=user, object_data=data)
-        model_class = apps.get_model("policyholder", cls._mutation_class)
+        model_class = apps.get_model(cls._mutation_module, cls._mutation_class)
         if model_class and hasattr(model_class, "object_mutated"):
             model_class.object_mutated(user, client_mutation_id=client_mutation_id, **{cls._mutation_module:created_object})
 
