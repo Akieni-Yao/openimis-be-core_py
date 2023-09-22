@@ -4,8 +4,8 @@ from core import TimeUtils
 from core.schema import OpenIMISMutation
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
+from django.apps import apps
 from core.gql.gql_mutations import ObjectNotExistException
-
 
 class BaseMutation(OpenIMISMutation):
 
@@ -181,10 +181,13 @@ class BaseHistoryModelCreateMutationMixin:
     @classmethod
     def _mutate(cls, user, **data):
         if "client_mutation_id" in data:
-            data.pop('client_mutation_id')
+            client_mutation_id = data.pop('client_mutation_id')
         if "client_mutation_label" in data:
             data.pop('client_mutation_label')
-        cls.create_object(user=user, object_data=data)
+        created_object = cls.create_object(user=user, object_data=data)
+        model_class = apps.get_model("policyholder", cls._mutation_class)
+        if model_class and hasattr(model_class, "object_mutated"):
+            model_class.object_mutated(user, client_mutation_id=client_mutation_id, **{cls._mutation_module:created_object})
 
     @classmethod
     def create_object(cls, user, object_data):
