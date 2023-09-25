@@ -186,7 +186,7 @@ class BaseHistoryModelCreateMutationMixin:
             data.pop('client_mutation_label')
         created_object = cls.create_object(user=user, object_data=data)
         model_class = apps.get_model(cls._mutation_module, cls._mutation_class)
-        if model_class and hasattr(model_class, "object_mutated"):
+        if model_class and hasattr(model_class, "object_mutated") and client_mutation_id and model_class:
             model_class.object_mutated(user, client_mutation_id=client_mutation_id, **{cls._mutation_module:created_object})
 
     @classmethod
@@ -219,12 +219,20 @@ class BaseHistoryModelUpdateMutationMixin:
         if "date_valid_to" not in data:
             data['date_valid_to'] = None
         if "client_mutation_id" in data:
-            data.pop('client_mutation_id')
+            client_mutation_id = data.pop('client_mutation_id')
         if "client_mutation_label" in data:
             data.pop('client_mutation_label')
         updated_object = cls._model.objects.filter(id=data['id']).first()
         [setattr(updated_object, key, data[key]) for key in data]
-        cls.update_object(user=user, object_to_update=updated_object)
+        updated_object = cls.update_object(user=user, object_to_update=updated_object)
+        model_class = apps.get_model(cls._mutation_module, cls._mutation_class)
+        if (model_class
+                and hasattr(model_class, "object_mutated")
+                and client_mutation_id
+                and model_class
+                and updated_object):
+            model_class.object_mutated(
+                user, client_mutation_id=client_mutation_id, **{cls._mutation_module:updated_object})
 
     @classmethod
     def update_object(cls, user, object_to_update):
