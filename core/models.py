@@ -654,6 +654,16 @@ class UserGroup(models.Model):
         unique_together = (('user', 'group'),)
 
 
+class Station(models.Model):
+    id = models.AutoField(db_column='StationID', primary_key=True)
+    name = models.CharField(db_column='Name', max_length=256, blank=True, null=True)
+    location = models.ForeignKey('location.Location', models.DO_NOTHING, db_column='LocationId', blank=True, null=True)
+
+    class Meta:
+        managed = True
+        db_table = 'tblStation'
+
+
 class Officer(VersionedModel, ExtendableModel):
     id = models.AutoField(db_column='OfficerID', primary_key=True)
     uuid = models.CharField(db_column='OfficerUUID',
@@ -679,7 +689,7 @@ class Officer(VersionedModel, ExtendableModel):
     phone_communication = models.BooleanField(db_column='PhoneCommunication', blank=True, null=True)
     address = models.CharField(db_column="permanentaddress", max_length=100, blank=True, null=True)
     has_login = models.BooleanField(db_column='HasLogin', blank=True, null=True)
-
+    station = models.ForeignKey(Station, models.DO_NOTHING, db_column='StationId', blank=True, null=True)
     # user = models.ForeignKey(User, db_column='UserID', blank=True, null=True, on_delete=models.CASCADE)
 
     def name(self):
