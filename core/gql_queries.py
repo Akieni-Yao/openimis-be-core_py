@@ -7,8 +7,25 @@ from location.models import HealthFacility
 from .apps import CoreConfig
 from django.utils.translation import gettext as _
 from django.core.exceptions import PermissionDenied
+from .models import Station
 
 from .utils import prefix_filterset
+
+
+class StationGQLType(DjangoObjectType):
+    class Meta:
+        model = Station
+        interfaces = (graphene.relay.Node,)
+        filter_fields = {
+            "id": ["exact"],
+            "name": ["exact", "icontains"],
+            "location__id": ["exact"],
+            "location__uuid": ["exact"],
+            "location__type": ["exact"],
+            "location__code": ["exact", "icontains"],
+            "location__name": ["exact", "icontains"],
+        }
+        connection_class = ExtendedConnection
 
 
 class OfficerGQLType(DjangoObjectType):

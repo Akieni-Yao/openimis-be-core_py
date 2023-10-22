@@ -428,6 +428,8 @@ class Query(graphene.ObjectType):
         client_mutation_id=graphene.String(),
         str=graphene.String(description="Text search on any field")
     )
+    
+    station = OrderedDjangoFilterConnectionField(StationGQLType)
 
     role_right = OrderedDjangoFilterConnectionField(
         RoleRightGQLType, orderBy=graphene.List(of_type=graphene.String), validity=graphene.Date(), max_limit=None
