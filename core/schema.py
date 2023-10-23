@@ -1129,6 +1129,7 @@ class UserBase:
     address = graphene.String(required=False)  # multi-line
     works_to = graphene.DateTime(required=False)
     substitution_officer_id = graphene.Int(required=False)
+    station_id = graphene.Int(required=False)
     # TODO VEO_code, last_name, other names, dob, phone
     phone_communication = graphene.Boolean(required=False)
     location_id = graphene.Int(

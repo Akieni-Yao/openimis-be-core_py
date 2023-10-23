@@ -121,6 +121,7 @@ def create_or_update_officer(user_id, data, audit_user_id, connected):
         "location_id": "location_id",
         # TODO veo_code, last_name, other_names, dob, phone
         "substitution_officer_id": "substitution_officer_id",
+        "station_id": "station_id",
         "phone_communication": "phone_communication",
     }
     data_subset = {v: data.get(k) for k, v in officer_fields.items()}
