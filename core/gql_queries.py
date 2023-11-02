@@ -42,6 +42,8 @@ class OfficerGQLType(DjangoObjectType):
             "last_name": ["exact", "icontains"],
             "other_names": ["exact", "icontains"],
             "dob": ["exact"],
+            "station": ["exact"],
+            "station__name": ["exact", "icontains"]
         }
         connection_class = ExtendedConnection
 
