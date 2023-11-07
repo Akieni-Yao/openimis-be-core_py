@@ -6,6 +6,8 @@ from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
 from django.apps import apps
 from core.gql.gql_mutations import ObjectNotExistException
+import logging
+logger = logging.getLogger("openimis." + __name__)
 
 class BaseMutation(OpenIMISMutation):
 
@@ -185,9 +187,13 @@ class BaseHistoryModelCreateMutationMixin:
         if "client_mutation_label" in data:
             data.pop('client_mutation_label')
         created_object = cls.create_object(user=user, object_data=data)
-        model_class = apps.get_model(cls._mutation_module, cls._mutation_class)
-        if model_class and hasattr(model_class, "object_mutated") and client_mutation_id and model_class:
-            model_class.object_mutated(user, client_mutation_id=client_mutation_id, **{cls._mutation_module:created_object})
+        try:
+            model_class = apps.get_model(cls._mutation_module, cls._mutation_class)
+            if model_class and hasattr(model_class, "object_mutated") and client_mutation_id and model_class:
+                model_class.object_mutated(user, client_mutation_id=client_mutation_id, **{cls._mutation_module:created_object})
+        except LookupError:
+            logger.debug(f"BaseHistoryModelCreateMutation didn't find a Mutation model for {cls._mutation_module} as"
+                         f" {cls._mutation_class}, ignoring")
 
     @classmethod
     def create_object(cls, user, object_data):
