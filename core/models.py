@@ -656,6 +656,7 @@ class UserGroup(models.Model):
 
 class Station(models.Model):
     id = models.AutoField(db_column='StationID', primary_key=True)
+    uuid = models.UUIDField(db_column='StationUUID', max_length=56, default=uuid.uuid4, unique=True)
     name = models.CharField(db_column='Name', max_length=256, blank=True, null=True)
     location = models.ForeignKey('location.Location', models.DO_NOTHING, db_column='LocationId', blank=True, null=True)
 

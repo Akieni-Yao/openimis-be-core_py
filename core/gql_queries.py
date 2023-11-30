@@ -17,6 +17,7 @@ class StationGQLType(DjangoObjectType):
         model = Station
         filter_fields = {
             "id": ["exact"],
+            "uuid": ["exact"],
             "name": ["exact", "icontains"],
             "location": ["exact"],
             "location__uuid": ["exact"],

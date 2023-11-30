@@ -429,7 +429,10 @@ class Query(graphene.ObjectType):
         str=graphene.String(description="Text search on any field")
     )
     
-    station = OrderedDjangoFilterConnectionField(StationGQLType)
+    station = OrderedDjangoFilterConnectionField(
+        StationGQLType,
+        orderBy=graphene.List(of_type=graphene.String),
+    )
 
     role_right = OrderedDjangoFilterConnectionField(
         RoleRightGQLType, orderBy=graphene.List(of_type=graphene.String), validity=graphene.Date(), max_limit=None
