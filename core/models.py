@@ -493,13 +493,25 @@ class UserRole(VersionedModel):
         db_table = 'tblUserRole'
 
 
+class Station(models.Model):
+    id = models.AutoField(db_column='StationID', primary_key=True)
+    uuid = models.UUIDField(db_column='StationUUID', max_length=56, default=uuid.uuid4, unique=True)
+    name = models.CharField(db_column='Name', max_length=256, blank=True, null=True)
+    location = models.ForeignKey('location.Location', models.DO_NOTHING, db_column='LocationId', blank=True, null=True)
+
+    class Meta:
+        managed = True
+        db_table = 'tblStation'
+
+
 class User(UUIDModel, PermissionsMixin):
     username = models.CharField(unique=True, max_length=CoreConfig.user_username_and_code_length_limit)
     t_user = models.ForeignKey(TechnicalUser, on_delete=models.CASCADE, blank=True, null=True)
     i_user = models.ForeignKey(InteractiveUser, on_delete=models.CASCADE, blank=True, null=True)
     officer = models.ForeignKey("Officer", on_delete=models.CASCADE, blank=True, null=True)
     claim_admin = models.ForeignKey("claim.ClaimAdmin", on_delete=models.CASCADE, blank=True, null=True)
-
+    station = models.ForeignKey(Station, models.DO_NOTHING, db_column='StationId', blank=True, null=True)
+    
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = []
 
@@ -653,16 +665,6 @@ class UserGroup(models.Model):
         db_table = 'Core_User_groups'
         unique_together = (('user', 'group'),)
 
-
-class Station(models.Model):
-    id = models.AutoField(db_column='StationID', primary_key=True)
-    uuid = models.UUIDField(db_column='StationUUID', max_length=56, default=uuid.uuid4, unique=True)
-    name = models.CharField(db_column='Name', max_length=256, blank=True, null=True)
-    location = models.ForeignKey('location.Location', models.DO_NOTHING, db_column='LocationId', blank=True, null=True)
-
-    class Meta:
-        managed = True
-        db_table = 'tblStation'
 
 
 class Officer(VersionedModel, ExtendableModel):
