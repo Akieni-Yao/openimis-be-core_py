@@ -9,6 +9,7 @@ from django.utils.translation import gettext as _
 from django.core.exceptions import PermissionDenied
 from .models import Station
 
+
 from .utils import prefix_filterset
 
 
@@ -116,7 +117,8 @@ class InteractiveUserGQLType(DjangoObjectType):
         description="Health Facility is not a foreign key in the database, this field resolves it manually, use only "
                     "if necessary.")
     roles = graphene.List(RoleGQLType, description="Same as userRoles but a straight list, without the M-N relation")
-
+    station = graphene.Field(StationGQLType)
+    
     class Meta:
         model = InteractiveUser
         interfaces = (graphene.relay.Node,)
@@ -178,6 +180,7 @@ class UserGQLType(DjangoObjectType):
     last_name = graphene.String()
     email = graphene.String()
     phone = graphene.String()
+    station = graphene.Field(StationGQLType)
 
     class Meta:
         model = User
