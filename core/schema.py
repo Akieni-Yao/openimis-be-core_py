@@ -1240,12 +1240,17 @@ class DeleteUserMutation(OpenIMISMutation):
 @transaction.atomic
 @validate_payload_for_obligatory_fields(CoreConfig.fields_controls_user, 'data')
 def update_or_create_user(data, user):
+
     client_mutation_id = data.get("client_mutation_id", None)
     # client_mutation_label = data.get("client_mutation_label", None)
 
     incoming_email = data.get('email')
     current_user = InteractiveUser.objects.filter(user__id=data['uuid']).first()
-
+    station_id = data.get('station_id') if 'station_id' in data.keys() else None
+    if station_id:
+        station = Station.objects.get(pk=station_id)
+    else:
+        station = None
     current_email = current_user.email if current_user else None
 
     if incoming_email:
@@ -1283,8 +1288,9 @@ def update_or_create_user(data, user):
             user_uuid, data, user.id_for_audit, UT_INTERACTIVE in data["user_types"])
     else:
         claim_admin, claim_admin_created = None, False
+
     core_user, core_user_created = create_or_update_core_user(
-        user_uuid=user_uuid, username=username, i_user=i_user, officer=officer, claim_admin=claim_admin)
+        user_uuid=user_uuid, username=username, i_user=i_user, officer=officer, claim_admin=claim_admin, station=station)
 
     if client_mutation_id:
         UserMutation.object_mutated(user, core_user=core_user, client_mutation_id=client_mutation_id)
