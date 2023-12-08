@@ -1340,7 +1340,7 @@ class CheckAssignedProfiles(graphene.Mutation):
         user_id = graphene.UUID(required=True)
 
     def mutate(self, info,user_id):
-        user = User.objects.get(id=user_id)
+        user = User.objects.filter(id=user_id).first()
 
         try:
             i_user = user.i_user
