@@ -1,5 +1,11 @@
 import core
 import graphene
+import qrcode
+import time
+import base64
+from io import BytesIO
+from PIL import Image
+from django.conf import settings
 from django.db.models import Q
 from django.utils.translation import gettext as _
 import logging
@@ -266,3 +272,22 @@ def insert_role_right_for_system(system_role, right_id):
         role_right = RoleRight.objects.create(role=existing_role, right_id=right_id)
 
     return role_right
+
+
+def generate_qr(data):
+    
+    qr = qrcode.QRCode(
+    version=1,
+    error_correction=qrcode.constants.ERROR_CORRECT_L,
+    box_size=10,
+    border=4,
+    )
+    qr.add_data(data)
+    qr = qrcode.make()
+    stream = BytesIO()
+    qr_pil = Image(qr, format="PNG")
+    image_data = qr_pil.save(stream, format="PNG")
+    # image_data.seek(0) # set BytesIO pointer to the begining
+    img_binary=base64.b64encode(image_data.getvalue()).decode('utf-8')
+
+    return qr
