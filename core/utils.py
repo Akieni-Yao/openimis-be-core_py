@@ -2,6 +2,9 @@ import core
 import graphene
 import qrcode
 import time
+import base64
+from io import BytesIO
+from PIL import Image
 from django.conf import settings
 from django.db.models import Q
 from django.utils.translation import gettext as _
@@ -281,8 +284,10 @@ def generate_qr(data):
     )
     qr.add_data(data)
     qr = qrcode.make()
-    img_name = f'{str(time.time())}.png'
-    
-    qr.save(settings.QR_DIRECTORY + "\\" + img_name, "PNG")
+    stream = BytesIO()
+    qr_pil = Image(qr, format="PNG")
+    image_data = qr_pil.save(stream, format="PNG")
+    # image_data.seek(0) # set BytesIO pointer to the begining
+    img_binary=base64.b64encode(image_data.getvalue()).decode('utf-8')
 
     return qr

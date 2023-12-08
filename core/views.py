@@ -1,7 +1,8 @@
 import csv
 import qrcode
-from io import BytesIO
 import base64
+from io import BytesIO
+from PIL import Image
 from django.conf import settings
 from django.http import Http404, StreamingHttpResponse, HttpResponse
 from isodate import strftime
@@ -57,7 +58,7 @@ def _serialize_job(job):
 def get_scheduled_jobs(request):
     return Response([_serialize_job(job) for job in scheduler.get_jobs()])
 
-from PIL import Image
+
 @api_view(['POST'])
 def generate_qr(request):
 
