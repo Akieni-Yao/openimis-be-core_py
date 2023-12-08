@@ -5,7 +5,6 @@ import re
 import sys
 import uuid
 
-import graphene
 from django.utils.translation import gettext as _
 from copy import copy
 from datetime import datetime as py_datetime
@@ -39,6 +38,7 @@ from graphene_django.filter import DjangoFilterConnectionField
 import graphql_jwt
 from typing import Optional, List, Dict, Any
 
+from workflow.models import WF_Profile_Queue
 from .apps import CoreConfig
 from .gql_queries import *
 from .utils import flatten_dict
@@ -428,7 +428,7 @@ class Query(graphene.ObjectType):
         client_mutation_id=graphene.String(),
         str=graphene.String(description="Text search on any field")
     )
-    
+
     station = OrderedDjangoFilterConnectionField(
         StationGQLType,
         orderBy=graphene.List(of_type=graphene.String),
@@ -1061,7 +1061,7 @@ class DeleteRoleMutation(OpenIMISMutation):
                 errors.append({
                     'title': role,
                     'list': [{'message':
-                              "role.validation.id_does_not_exist" % {'id': role_uuid}}]
+                                  "role.validation.id_does_not_exist" % {'id': role_uuid}}]
                 })
                 continue
             errors += set_role_deleted(role)
@@ -1228,7 +1228,7 @@ class DeleteUserMutation(OpenIMISMutation):
                 errors.append({
                     'title': user,
                     'list': [{'message':
-                              "user.validation.id_does_not_exist" % {'id': user_uuid}}]
+                                  "user.validation.id_does_not_exist" % {'id': user_uuid}}]
                 })
                 continue
             errors += set_user_deleted(user)
@@ -1240,7 +1240,6 @@ class DeleteUserMutation(OpenIMISMutation):
 @transaction.atomic
 @validate_payload_for_obligatory_fields(CoreConfig.fields_controls_user, 'data')
 def update_or_create_user(data, user):
-
     client_mutation_id = data.get("client_mutation_id", None)
     # client_mutation_label = data.get("client_mutation_label", None)
 
@@ -1290,7 +1289,8 @@ def update_or_create_user(data, user):
         claim_admin, claim_admin_created = None, False
 
     core_user, core_user_created = create_or_update_core_user(
-        user_uuid=user_uuid, username=username, i_user=i_user, officer=officer, claim_admin=claim_admin, station=station)
+        user_uuid=user_uuid, username=username, i_user=i_user, officer=officer, claim_admin=claim_admin,
+        station=station)
 
     if client_mutation_id:
         UserMutation.object_mutated(user, core_user=core_user, client_mutation_id=client_mutation_id)
@@ -1331,6 +1331,40 @@ def set_user_deleted(user):
                 "message": "role.mutation.failed_to_change_status_of_user" % {'user': str(user)},
                 "detail": user.id}]
         }
+
+
+class CheckAssignedProfiles(graphene.Mutation):
+    status = graphene.Boolean()
+
+    def mutate(self, info):
+        user = info.context.user
+
+        try:
+            i_user = user.i_user
+            logger.info(f"i_user retrieved: {i_user}")
+
+            approver_role = Role.objects.get(name='approver')
+            logger.info(f"Approver role retrieved: {approver_role}")
+
+            has_approver_role = UserRole.objects.filter(user=i_user, role=approver_role).exists()
+            logger.info(f"User has approver role: {has_approver_role}")
+
+            if has_approver_role:
+                user_profile_queue = WF_Profile_Queue.objects.filter(
+                    user_id=user.id, is_assigned=True
+                )
+                logger.info(f"User profile queue found: {user_profile_queue.exists()}")
+
+                if user_profile_queue.exists():
+                    user_profile_queue.update(user_id=None, is_assigned=False)
+                    logger.info("User profile queue updated")
+
+        except UserRole.DoesNotExist:
+            logger.error("User role does not exist.")
+        except Role.DoesNotExist:
+            logger.error("Role 'approver' does not exist.")
+
+        return CheckAssignedProfiles(status=True)
 
 
 class ChangePasswordMutation(graphene.relay.ClientIDMutation):
@@ -1446,9 +1480,47 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
         if username:
             # get_or_create will auto-provision from tblUsers if applicable
             user = User.objects.get_or_create(username=username)
+            cls.update_profile_queue_for_approver(user)
             if user:
                 logger.debug("Authentication with %s failed and could not be fetched from tblUsers", username)
         return super().mutate(cls, info, **kwargs)
+
+    def update_profile_queue_for_approver(user):
+        try:
+            i_user = user[0].i_user
+            logger.info(f"i_user retrieved: {i_user}")
+
+            approver_role = Role.objects.get(name='approver')
+            logger.info(f"Approver role retrieved: {approver_role}")
+
+            has_approver_role = UserRole.objects.filter(user=i_user, role=approver_role).exists()
+            logger.info(f"User has approver role: {has_approver_role}")
+
+            if has_approver_role:
+                user_profile_queue = WF_Profile_Queue.objects.filter(
+                    user_id__pro_que_user=user[0].id,
+                    is_assigned=True,
+                    is_action_taken=False
+                )
+                logger.info(f"User profile queue found: {user_profile_queue.exists()}")
+
+                if not user_profile_queue.exists():
+                    records_with_null_user_id = WF_Profile_Queue.objects.filter(
+                        user_id__pro_que_user__isnull=True
+                    )
+
+                    if records_with_null_user_id.exists():
+                        records_with_null_user_id.update(user_id=user[0].id, is_assigned=True)
+                        logger.info("Records with null user_id updated")
+            else:
+                logger.info("This user does not have the 'approver' role.")
+
+        except Role.DoesNotExist:
+            logger.error("The 'approver' role does not exist.")
+        except UserRole.DoesNotExist:
+            logger.error("No user role found.")
+        except Exception as e:
+            logger.error(f"An error occurred: {str(e)}")
 
 
 class Mutation(graphene.ObjectType):
@@ -1472,6 +1544,7 @@ class Mutation(graphene.ObjectType):
 
     delete_token_cookie = graphql_jwt.DeleteJSONWebTokenCookie.Field()
     delete_refresh_token_cookie = graphql_jwt.DeleteRefreshTokenCookie.Field()
+    check_assigned_profiles = CheckAssignedProfiles.Field()
 
 
 def on_role_mutation(sender, **kwargs):
