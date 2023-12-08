@@ -60,8 +60,7 @@ def get_scheduled_jobs(request):
 from PIL import Image
 @api_view(['POST'])
 def generate_qr(request):
-    import pdb 
-    pdb.set_trace()
+
     data = request.data.get('input')
     qr = qrcode.QRCode(
     version=1,
