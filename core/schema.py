@@ -1336,8 +1336,11 @@ def set_user_deleted(user):
 class CheckAssignedProfiles(graphene.Mutation):
     status = graphene.Boolean()
 
-    def mutate(self, info):
-        user = info.context.user
+    class Arguments:
+        user_id = graphene.UUID(required=True)
+
+    def mutate(self, info,user_id):
+        user = User.objects.get(id=user_id)
 
         try:
             i_user = user.i_user
