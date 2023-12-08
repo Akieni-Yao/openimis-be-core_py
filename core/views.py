@@ -1,6 +1,9 @@
 import csv
-
-from django.http import Http404, StreamingHttpResponse
+import qrcode
+from io import BytesIO
+import base64
+from django.conf import settings
+from django.http import Http404, StreamingHttpResponse, HttpResponse
 from isodate import strftime
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view
@@ -53,3 +56,25 @@ def _serialize_job(job):
 @api_view(['GET'])
 def get_scheduled_jobs(request):
     return Response([_serialize_job(job) for job in scheduler.get_jobs()])
+
+from PIL import Image
+@api_view(['POST'])
+def generate_qr(request):
+    import pdb 
+    pdb.set_trace()
+    data = request.data.get('input')
+    qr = qrcode.QRCode(
+    version=1,
+    error_correction=qrcode.constants.ERROR_CORRECT_L,
+    box_size=10,
+    border=4,
+    )
+    qr.add_data(data)
+    qr = qrcode.make()
+    stream = BytesIO()
+    qr_pil = Image(qr, format="PNG")
+    image_data = qr_pil.save(stream, format="PNG")
+    # image_data.seek(0) # set BytesIO pointer to the begining
+    img_binary=base64.b64encode(image_data.getvalue()).decode('utf-8')
+
+    return Response({"qr": img_binary}, status=status.HTTP_201_CREATED)
