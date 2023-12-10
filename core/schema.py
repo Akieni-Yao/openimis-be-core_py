@@ -1355,7 +1355,7 @@ class CheckAssignedProfiles(graphene.Mutation):
 
                 if has_approver_role:
                     user_profile_queues = WF_Profile_Queue.objects.filter(
-                        user_id=user.id, is_assigned=True, is_action_taken=False
+                        user_id=user.id, is_assigned=True
                     )
                     logger.info(f"User profile queues found: {user_profile_queues.exists()}")
 
@@ -1501,29 +1501,20 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
             logger.info(f"User has approver role: {has_approver_role}")
 
             if has_approver_role:
-                # user_profile_queue = WF_Profile_Queue.objects.filter(
-                #     user_id__pro_que_user=user[0].id,
-                #     is_assigned=True,
-                #     is_action_taken=False
-                # )
                 user_profile_queue = WF_Profile_Queue.objects.filter(
-                    user_id_id=user[0].id,
+                    user_id__pro_que_user=user[0].id,
                     is_assigned=True,
                     is_action_taken=False
                 )
                 logger.info(f"User profile queue found: {user_profile_queue.exists()}")
 
                 if not user_profile_queue.exists():
-                    # records_with_null_user_id = WF_Profile_Queue.objects.filter(
-                    #     user_id__pro_que_user__isnull=True
-                    # )
                     records_with_null_user_id = WF_Profile_Queue.objects.filter(
-                        user_id__isnull=True
-                    ).first()
+                        user_id__pro_que_user__isnull=True
+                    )
 
                     if records_with_null_user_id.exists():
-                        # records_with_null_user_id.update(user_id=user[0].id, is_assigned=True)
-                        records_with_null_user_id.update(user_id_id=user[0].id, is_assigned=True)
+                        records_with_null_user_id.update(user_id=user[0].id, is_assigned=True)
                         logger.info("Records with null user_id updated")
             else:
                 logger.info("This user does not have the 'approver' role.")
