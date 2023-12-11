@@ -1355,7 +1355,7 @@ class CheckAssignedProfiles(graphene.Mutation):
 
                 if has_approver_role:
                     user_profile_queues = WF_Profile_Queue.objects.filter(
-                        user_id=user.id, is_assigned=True
+                        user_id=user.id, is_assigned=True, is_action_taken=False
                     )
                     logger.info(f"User profile queues found: {user_profile_queues.exists()}")
 
