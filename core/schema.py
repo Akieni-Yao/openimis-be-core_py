@@ -40,6 +40,7 @@ from typing import Optional, List, Dict, Any
 
 from workflow.models import WF_Profile_Queue
 from .apps import CoreConfig
+from .constants import APPROVER_ROLE
 from .gql_queries import *
 from .utils import flatten_dict
 from .models import ModuleConfiguration, FieldControl, MutationLog, Language, RoleMutation, UserMutation
@@ -1494,7 +1495,7 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
             i_user = user[0].i_user
             logger.info(f"i_user retrieved: {i_user}")
 
-            approver_role = Role.objects.filter(name='approver').first()
+            approver_role = Role.objects.filter(name=APPROVER_ROLE).first()
             logger.info(f"Approver role retrieved: {approver_role}")
 
             has_approver_role = UserRole.objects.filter(user=i_user, role=approver_role).exists()
