@@ -1494,7 +1494,7 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
             i_user = user[0].i_user
             logger.info(f"i_user retrieved: {i_user}")
 
-            approver_role = Role.objects.get(name='approver')
+            approver_role = Role.objects.objects.filter(name='approver').first()
             logger.info(f"Approver role retrieved: {approver_role}")
 
             has_approver_role = UserRole.objects.filter(user=i_user, role=approver_role).exists()
