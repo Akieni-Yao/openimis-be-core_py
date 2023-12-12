@@ -1347,22 +1347,22 @@ class CheckAssignedProfiles(graphene.Mutation):
             i_user = user.i_user
             logger.info(f"i_user retrieved: {i_user}")
 
-            approver_role = Role.objects.filter(name='approver').first()
-            logger.info(f"Approver roles retrieved: {approver_role}")
+            approver_roles = Role.objects.filter(name='approver')
+            logger.info(f"Approver roles retrieved: {approver_roles}")
 
-            # for approver_role in approver_roles:
-            has_approver_role = UserRole.objects.filter(user=i_user, role=approver_role).exists()
-            logger.info(f"User has approver role: {has_approver_role}")
+            for approver_role in approver_roles:
+                has_approver_role = UserRole.objects.filter(user=i_user, role=approver_role).exists()
+                logger.info(f"User has approver role: {has_approver_role}")
 
-            if has_approver_role:
-                user_profile_queues = WF_Profile_Queue.objects.filter(
-                    user_id=user.id, is_assigned=True, is_action_taken=False
-                )
-                logger.info(f"User profile queues found: {user_profile_queues.exists()}")
+                if has_approver_role:
+                    user_profile_queues = WF_Profile_Queue.objects.filter(
+                        user_id=user.id, is_assigned=True, is_action_taken=False
+                    )
+                    logger.info(f"User profile queues found: {user_profile_queues.exists()}")
 
-                if user_profile_queues.exists():
-                    user_profile_queues.update(user_id=None, is_assigned=False)
-                    logger.info("User profile queues updated")
+                    if user_profile_queues.exists():
+                        user_profile_queues.update(user_id=None, is_assigned=False)
+                        logger.info("User profile queues updated")
 
         except UserRole.DoesNotExist:
             logger.error("User role does not exist.")
@@ -1506,13 +1506,13 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
                     user_id__pro_que_user=user[0].id,
                     is_assigned=True,
                     is_action_taken=False
-                ).first()
+                )
                 logger.info(f"User profile queue found: {user_profile_queue.exists()}")
 
                 if not user_profile_queue.exists():
                     records_with_null_user_id = WF_Profile_Queue.objects.filter(
-                        user_id__pro_que_user__isnull=True, is_assigned=False, is_action_taken=False
-                    ).first()
+                        user_id__pro_que_user__isnull=True
+                    )
 
                     if records_with_null_user_id.exists():
                         records_with_null_user_id.update(user_id=user[0].id, is_assigned=True)
