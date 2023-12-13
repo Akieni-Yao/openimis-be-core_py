@@ -39,6 +39,8 @@ import graphql_jwt
 from typing import Optional, List, Dict, Any
 
 from workflow.models import WF_Profile_Queue
+from workflow.constants import STATUS_WAITING_FOR_APPROVAL, STATUS_WAITING_FOR_QUEUE
+from insuree.models import Insuree, Family
 from .apps import CoreConfig
 from .constants import APPROVER_ROLE
 from .gql_queries import *
@@ -1347,22 +1349,29 @@ class CheckAssignedProfiles(graphene.Mutation):
             i_user = user.i_user
             logger.info(f"i_user retrieved: {i_user}")
 
-            approver_roles = Role.objects.filter(name='approver')
-            logger.info(f"Approver roles retrieved: {approver_roles}")
+            approver_role = Role.objects.filter(name__iexact=APPROVER_ROLE, legacy_id__isnull=True).first()
+            logger.info(f"Approver roles retrieved: {approver_role}")
+            print("approver_role : ", approver_role)
+            # for approver_role in approver_roles:
+            has_approver_role = UserRole.objects.filter(user=i_user, role=approver_role).exists()
+            logger.info(f"User has approver role: {has_approver_role}")
+            print("has_approver_role : ", has_approver_role)
+            if has_approver_role:
+                user_profile_queues = WF_Profile_Queue.objects.filter(
+                    user_id_id=user.id, is_assigned=True, is_action_taken=False
+                ).first()
+                logger.info(f"User profile queues found: {user_profile_queues}")
 
-            for approver_role in approver_roles:
-                has_approver_role = UserRole.objects.filter(user=i_user, role=approver_role).exists()
-                logger.info(f"User has approver role: {has_approver_role}")
-
-                if has_approver_role:
-                    user_profile_queues = WF_Profile_Queue.objects.filter(
-                        user_id=user.id, is_assigned=True, is_action_taken=False
-                    )
-                    logger.info(f"User profile queues found: {user_profile_queues.exists()}")
-
-                    if user_profile_queues.exists():
-                        user_profile_queues.update(user_id=None, is_assigned=False)
-                        logger.info("User profile queues updated")
+                if user_profile_queues:
+                    WF_Profile_Queue.objects.filter(id=user_profile_queues.id).update(user_id=None, is_assigned=False)
+                    
+                    Insuree.objects.filter(family_id=user_profile_queues.family.id, legacy_id__isnull=True, status=STATUS_WAITING_FOR_APPROVAL).update(status=STATUS_WAITING_FOR_QUEUE)
+                    head_insuree = Insuree.objects.filter(family_id=user_profile_queues.family.id, legacy_id__isnull=True, head=True).first()
+                    if head_insuree.status == STATUS_WAITING_FOR_QUEUE:
+                        Family.objects.filter(id=user_profile_queues.family.id).update(status=STATUS_WAITING_FOR_QUEUE)
+                    # user_profile_queues.update(user_id=None, is_assigned=False)
+                    print("=============  unassigned profile  ==============")
+                    logger.info("User profile queues updated")
 
         except UserRole.DoesNotExist:
             logger.error("User role does not exist.")
@@ -1500,22 +1509,35 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
 
             has_approver_role = UserRole.objects.filter(user=i_user, role=approver_role).exists()
             logger.info(f"User has approver role: {has_approver_role}")
-
+            print("has_approver_role : ", has_approver_role)
             if has_approver_role:
+                # user_profile_queue = WF_Profile_Queue.objects.filter(
+                #     user_id__pro_que_user=user[0].id,
+                #     is_assigned=True,
+                #     is_action_taken=False
+                # )
                 user_profile_queue = WF_Profile_Queue.objects.filter(
-                    user_id__pro_que_user=user[0].id,
+                    user_id__id=user[0].id,
                     is_assigned=True,
                     is_action_taken=False
-                )
-                logger.info(f"User profile queue found: {user_profile_queue.exists()}")
+                ).first()
+                print("user_profile_queue : ", user_profile_queue)
+                logger.info(f"User profile queue found: {user_profile_queue}")
 
-                if not user_profile_queue.exists():
+                if not user_profile_queue:
                     records_with_null_user_id = WF_Profile_Queue.objects.filter(
-                        user_id__pro_que_user__isnull=True
-                    )
-
-                    if records_with_null_user_id.exists():
-                        records_with_null_user_id.update(user_id=user[0].id, is_assigned=True)
+                        user_id__pro_que_user__isnull=True, is_assigned=False, is_action_taken=False
+                    ).first()
+                    print("records_with_null_user_id : ", records_with_null_user_id)
+                    if records_with_null_user_id:
+                        print("==========   profile assigned  ==============")
+                        WF_Profile_Queue.objects.filter(id=records_with_null_user_id.id).update(user_id_id=user[0].id, is_assigned=True)
+                        
+                        Insuree.objects.filter(family_id=records_with_null_user_id.family.id, legacy_id__isnull=True, status=STATUS_WAITING_FOR_QUEUE).update(status=STATUS_WAITING_FOR_APPROVAL)
+                        head_insuree = Insuree.objects.filter(family_id=records_with_null_user_id.family.id, legacy_id__isnull=True, head=True).first()
+                        if head_insuree.status == STATUS_WAITING_FOR_APPROVAL:
+                            Family.objects.filter(id=records_with_null_user_id.family.id).update(status=STATUS_WAITING_FOR_APPROVAL)
+                        # records_with_null_user_id.update(user_id=user[0].id, is_assigned=True)
                         logger.info("Records with null user_id updated")
             else:
                 logger.info("This user does not have the 'approver' role.")
