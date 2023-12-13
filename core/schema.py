@@ -39,6 +39,8 @@ import graphql_jwt
 from typing import Optional, List, Dict, Any
 
 from workflow.models import WF_Profile_Queue
+from workflow.constants import STATUS_WAITING_FOR_APPROVAL, STATUS_WAITING_FOR_QUEUE
+from insuree.models import Insuree, Family
 from .apps import CoreConfig
 from .constants import APPROVER_ROLE
 from .gql_queries import *
@@ -1358,10 +1360,15 @@ class CheckAssignedProfiles(graphene.Mutation):
                 user_profile_queues = WF_Profile_Queue.objects.filter(
                     user_id_id=user.id, is_assigned=True, is_action_taken=False
                 ).first()
-                logger.info(f"User profile queues found: {user_profile_queues.exists()}")
+                logger.info(f"User profile queues found: {user_profile_queues}")
 
-                if user_profile_queues.exists():
+                if user_profile_queues:
                     WF_Profile_Queue.objects.filter(id=user_profile_queues.id).update(user_id=None, is_assigned=False)
+                    
+                    Insuree.objects.filter(id=user_profile_queues.family.id, legacy_id__isnull=True, status=STATUS_WAITING_FOR_APPROVAL).update(status=STATUS_WAITING_FOR_QUEUE)
+                    head_insuree = Insuree.objects.filter(family_id=user_profile_queues.family.id, legacy_id__isnull=True, head=True).first()
+                    if head_insuree.status == STATUS_WAITING_FOR_QUEUE:
+                        Family.objects.filter(id=user_profile_queues.family.id).update(status=STATUS_WAITING_FOR_QUEUE)
                     # user_profile_queues.update(user_id=None, is_assigned=False)
                     print("=============  unassigned profile  ==============")
                     logger.info("User profile queues updated")
@@ -1515,16 +1522,21 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
                     is_action_taken=False
                 ).first()
                 print("user_profile_queue : ", user_profile_queue)
-                logger.info(f"User profile queue found: {user_profile_queue.exists()}")
+                logger.info(f"User profile queue found: {user_profile_queue}")
 
-                if not user_profile_queue.exists():
+                if not user_profile_queue:
                     records_with_null_user_id = WF_Profile_Queue.objects.filter(
                         user_id__pro_que_user__isnull=True, is_assigned=False, is_action_taken=False
                     ).first()
                     print("records_with_null_user_id : ", records_with_null_user_id)
-                    if records_with_null_user_id.exists():
+                    if records_with_null_user_id:
                         print("==========   profile assigned  ==============")
                         WF_Profile_Queue.objects.filter(id=records_with_null_user_id.id).update(user_id_id=user[0].id, is_assigned=True)
+                        
+                        Insuree.objects.filter(family_id=records_with_null_user_id.family.id, legacy_id__isnull=True, status=STATUS_WAITING_FOR_QUEUE).update(status=STATUS_WAITING_FOR_APPROVAL)
+                        head_insuree = Insuree.objects.filter(family_id=records_with_null_user_id.family.id, legacy_id__isnull=True, head=True).first()
+                        if head_insuree.status == STATUS_WAITING_FOR_APPROVAL:
+                            Family.objects.filter(id=records_with_null_user_id.family.id).update(status=STATUS_WAITING_FOR_APPROVAL)
                         # records_with_null_user_id.update(user_id=user[0].id, is_assigned=True)
                         logger.info("Records with null user_id updated")
             else:
