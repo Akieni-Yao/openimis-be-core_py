@@ -1350,7 +1350,7 @@ class CheckAssignedProfiles(graphene.Mutation):
             logger.info(f"i_user retrieved: {i_user}")
 
             approver_role = Role.objects.filter(name__iexact=APPROVER_ROLE, legacy_id__isnull=True).first()
-            logger.info(f"Approver roles retrieved: {approver_roles}")
+            logger.info(f"Approver roles retrieved: {approver_role}")
             print("approver_role : ", approver_role)
             # for approver_role in approver_roles:
             has_approver_role = UserRole.objects.filter(user=i_user, role=approver_role).exists()
@@ -1365,7 +1365,7 @@ class CheckAssignedProfiles(graphene.Mutation):
                 if user_profile_queues:
                     WF_Profile_Queue.objects.filter(id=user_profile_queues.id).update(user_id=None, is_assigned=False)
                     
-                    Insuree.objects.filter(id=user_profile_queues.family.id, legacy_id__isnull=True, status=STATUS_WAITING_FOR_APPROVAL).update(status=STATUS_WAITING_FOR_QUEUE)
+                    Insuree.objects.filter(family_id=user_profile_queues.family.id, legacy_id__isnull=True, status=STATUS_WAITING_FOR_APPROVAL).update(status=STATUS_WAITING_FOR_QUEUE)
                     head_insuree = Insuree.objects.filter(family_id=user_profile_queues.family.id, legacy_id__isnull=True, head=True).first()
                     if head_insuree.status == STATUS_WAITING_FOR_QUEUE:
                         Family.objects.filter(id=user_profile_queues.family.id).update(status=STATUS_WAITING_FOR_QUEUE)
