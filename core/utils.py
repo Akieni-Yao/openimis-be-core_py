@@ -12,7 +12,6 @@ import logging
 from django.apps import apps
 from django.core.exceptions import PermissionDenied
 
-
 logger = logging.getLogger(__file__)
 
 __all__ = [
@@ -73,7 +72,7 @@ def filter_validity(arg="validity", **kwargs):
             Q(validity_to__isnull=True),
         )
     return (
-       Q(validity_from__lte=validity),
+        Q(validity_from__lte=validity),
         Q(validity_to__isnull=True) | Q(validity_to__gte=validity),
     )
 
@@ -81,7 +80,7 @@ def filter_validity(arg="validity", **kwargs):
 def filter_validity_business_model(arg='dateValidFrom__Gte', arg2='dateValidTo__Lte', **kwargs):
     date_valid_from = kwargs.get(arg)
     date_valid_to = kwargs.get(arg2)
-    #default scenario
+    # default scenario
     if not date_valid_from and not date_valid_to:
         today = core.datetime.datetime.now()
         return __place_the_filters(date_start=today, date_end=None)
@@ -204,6 +203,7 @@ class ExtendedConnection(graphene.Connection):
     Graphene object definition Meta:
     `connection_class = ExtendedConnection`
     """
+
     class Meta:
         abstract = True
 
@@ -239,6 +239,7 @@ class ExtendedRelayConnection(graphene.relay.Connection):
     """
     Adds total_count and edge_count to Graphene Relay connections.
     """
+
     class Meta:
         abstract = True
 
@@ -275,19 +276,17 @@ def insert_role_right_for_system(system_role, right_id):
 
 
 def generate_qr(data):
-    
     qr = qrcode.QRCode(
-    version=1,
-    error_correction=qrcode.constants.ERROR_CORRECT_L,
-    box_size=10,
-    border=4,
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
     )
     qr.add_data(data)
-    qr = qrcode.make()
-    stream = BytesIO()
-    qr_pil = Image(qr, format="PNG")
-    image_data = qr_pil.save(stream, format="PNG")
-    # image_data.seek(0) # set BytesIO pointer to the begining
-    img_binary=base64.b64encode(image_data.getvalue()).decode('utf-8')
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color="black", back_color="white")
 
-    return qr
+    buffered = BytesIO()
+    qr_img.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
+    return img_str
