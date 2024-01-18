@@ -511,7 +511,7 @@ class User(UUIDModel, PermissionsMixin):
     officer = models.ForeignKey("Officer", on_delete=models.CASCADE, blank=True, null=True)
     claim_admin = models.ForeignKey("claim.ClaimAdmin", on_delete=models.CASCADE, blank=True, null=True)
     station = models.ForeignKey(Station, models.DO_NOTHING, db_column='StationId', blank=True, null=True)
-    
+
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = []
 
@@ -666,7 +666,6 @@ class UserGroup(models.Model):
         unique_together = (('user', 'group'),)
 
 
-
 class Officer(VersionedModel, ExtendableModel):
     id = models.AutoField(db_column='OfficerID', primary_key=True)
     uuid = models.CharField(db_column='OfficerUUID',
@@ -693,6 +692,7 @@ class Officer(VersionedModel, ExtendableModel):
     address = models.CharField(db_column="permanentaddress", max_length=100, blank=True, null=True)
     has_login = models.BooleanField(db_column='HasLogin', blank=True, null=True)
     station = models.ForeignKey(Station, models.DO_NOTHING, db_column='StationId', blank=True, null=True)
+
     # user = models.ForeignKey(User, db_column='UserID', blank=True, null=True, on_delete=models.CASCADE)
 
     def name(self):
@@ -740,7 +740,7 @@ class Officer(VersionedModel, ExtendableModel):
         Returns uuid of all locations allowed for given officer
         """
         from location.models import OfficerVillage, Location
-        villages = OfficerVillage.objects\
+        villages = OfficerVillage.objects \
             .filter(officer=self, validity_to__isnull=True)
         all_allowed_uuids = []
         for village in villages:
@@ -1108,3 +1108,13 @@ class ExportableQueryModel(models.Model):
         )
         export.save()
         return export
+
+
+class GenericConfig(UUIDModel, ExtendableModel):
+    name = models.CharField(db_column="ConfigName", max_length=256)
+    model_name = models.CharField(db_column="ModelName", max_length=256)
+    model_id = models.CharField(db_column="ModelId", max_length=256)
+
+    class Meta:
+        managed = True
+        db_table = "tblGenericConfig"

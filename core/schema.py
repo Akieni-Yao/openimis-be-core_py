@@ -45,7 +45,7 @@ from .apps import CoreConfig
 from .constants import APPROVER_ROLE
 from .gql_queries import *
 from .utils import flatten_dict
-from .models import ModuleConfiguration, FieldControl, MutationLog, Language, RoleMutation, UserMutation
+from .models import ModuleConfiguration, FieldControl, MutationLog, Language, RoleMutation, UserMutation, GenericConfig
 from .services.roleServices import check_role_unique_name
 from .services.userServices import check_user_unique_email
 from .validation.obligatoryFieldValidation import validate_payload_for_obligatory_fields
@@ -410,6 +410,11 @@ UserTypeEnum = graphene.Enum("UserTypes", [
 ])
 
 
+class GenericConfigType(DjangoObjectType):
+    class Meta:
+        model = GenericConfig
+
+
 class Query(graphene.ObjectType):
     module_configurations = graphene.List(
         ModuleConfigurationGQLType,
@@ -527,6 +532,8 @@ class Query(graphene.ObjectType):
     )
 
     username_length = graphene.Int()
+    all_configs = graphene.List(GenericConfigType)
+    generic_config = graphene.Field(GenericConfigType, model_id=graphene.String())
 
     def resolve_username_length(self, info, **kwargs):
         if not info.context.user.has_perms(CoreConfig.gql_query_users_perms):
@@ -839,6 +846,12 @@ class Query(graphene.ObjectType):
         if not info.context.user.is_authenticated:
             raise PermissionDenied(_("unauthorized"))
         return Language.objects.order_by('sort_order').all()
+
+    def resolve_all_generic_configs(self, info):
+        return GenericConfig.objects.all()
+
+    def resolve_generic_config(self, info, model_id):
+        return GenericConfig.objects.get(model_id=model_id)
 
 
 class RoleBase:
@@ -1364,9 +1377,11 @@ class CheckAssignedProfiles(graphene.Mutation):
 
                 if user_profile_queues:
                     WF_Profile_Queue.objects.filter(id=user_profile_queues.id).update(user_id=None, is_assigned=False)
-                    
-                    Insuree.objects.filter(family_id=user_profile_queues.family.id, legacy_id__isnull=True, status=STATUS_WAITING_FOR_APPROVAL).update(status=STATUS_WAITING_FOR_QUEUE)
-                    head_insuree = Insuree.objects.filter(family_id=user_profile_queues.family.id, legacy_id__isnull=True, head=True).first()
+
+                    Insuree.objects.filter(family_id=user_profile_queues.family.id, legacy_id__isnull=True,
+                                           status=STATUS_WAITING_FOR_APPROVAL).update(status=STATUS_WAITING_FOR_QUEUE)
+                    head_insuree = Insuree.objects.filter(family_id=user_profile_queues.family.id,
+                                                          legacy_id__isnull=True, head=True).first()
                     if head_insuree.status == STATUS_WAITING_FOR_QUEUE:
                         Family.objects.filter(id=user_profile_queues.family.id).update(status=STATUS_WAITING_FOR_QUEUE)
                     # user_profile_queues.update(user_id=None, is_assigned=False)
@@ -1379,6 +1394,54 @@ class CheckAssignedProfiles(graphene.Mutation):
             logger.error("Role 'approver' does not exist.")
 
         return CheckAssignedProfiles(status=True)
+
+
+class CreateGenericConfig(graphene.Mutation):
+    class Arguments:
+        name = graphene.String(required=True)
+        model_name = graphene.String(required=True)
+        model_id = graphene.String(required=True)
+        json_ext = graphene.String(required=True)
+
+    generic_config = graphene.Field(GenericConfigType)
+
+    @staticmethod
+    def mutate(root, info,name, model_name, model_id,json_ext):
+        generic_config = GenericConfig(name=name,model_name=model_name, model_id=model_id,json_ext=json_ext)
+        generic_config.save()
+        return CreateGenericConfig(generic_config=generic_config)
+
+
+class UpdateGenericConfig(graphene.Mutation):
+    class Arguments:
+        name = graphene.String(required=True)
+        model_id = graphene.String(required=True)
+        model_name = graphene.String()
+        json_ext = graphene.String(required=True)
+
+    generic_config = graphene.Field(GenericConfigType)
+
+    @staticmethod
+    def mutate(root, info, model_id, **kwargs):
+        generic_config = GenericConfig.objects.get(model_id=model_id)
+        for key, value in kwargs.items():
+            setattr(generic_config, key, value)
+        generic_config.save()
+        return UpdateGenericConfig(generic_config=generic_config)
+
+
+class DeleteGenericConfig(graphene.Mutation):
+    success = graphene.Boolean()
+
+    class Arguments:
+        config_id = graphene.UUID()
+
+    def mutate(self, info, config_id):
+        config = GenericConfig.objects.get(id=config_id)
+        if config:
+            config.delete()
+            return DeleteGenericConfig(success=True)
+        return DeleteGenericConfig(success=False)
 
 
 class ChangePasswordMutation(graphene.relay.ClientIDMutation):
@@ -1531,12 +1594,17 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
                     print("records_with_null_user_id : ", records_with_null_user_id)
                     if records_with_null_user_id:
                         print("==========   profile assigned  ==============")
-                        WF_Profile_Queue.objects.filter(id=records_with_null_user_id.id).update(user_id_id=user[0].id, is_assigned=True)
-                        
-                        Insuree.objects.filter(family_id=records_with_null_user_id.family.id, legacy_id__isnull=True, status=STATUS_WAITING_FOR_QUEUE).update(status=STATUS_WAITING_FOR_APPROVAL)
-                        head_insuree = Insuree.objects.filter(family_id=records_with_null_user_id.family.id, legacy_id__isnull=True, head=True).first()
+                        WF_Profile_Queue.objects.filter(id=records_with_null_user_id.id).update(user_id_id=user[0].id,
+                                                                                                is_assigned=True)
+
+                        Insuree.objects.filter(family_id=records_with_null_user_id.family.id, legacy_id__isnull=True,
+                                               status=STATUS_WAITING_FOR_QUEUE).update(
+                            status=STATUS_WAITING_FOR_APPROVAL)
+                        head_insuree = Insuree.objects.filter(family_id=records_with_null_user_id.family.id,
+                                                              legacy_id__isnull=True, head=True).first()
                         if head_insuree.status == STATUS_WAITING_FOR_APPROVAL:
-                            Family.objects.filter(id=records_with_null_user_id.family.id).update(status=STATUS_WAITING_FOR_APPROVAL)
+                            Family.objects.filter(id=records_with_null_user_id.family.id).update(
+                                status=STATUS_WAITING_FOR_APPROVAL)
                         # records_with_null_user_id.update(user_id=user[0].id, is_assigned=True)
                         logger.info("Records with null user_id updated")
             else:
@@ -1572,6 +1640,9 @@ class Mutation(graphene.ObjectType):
     delete_token_cookie = graphql_jwt.DeleteJSONWebTokenCookie.Field()
     delete_refresh_token_cookie = graphql_jwt.DeleteRefreshTokenCookie.Field()
     check_assigned_profiles = CheckAssignedProfiles.Field()
+    create_generic_config = CreateGenericConfig.Field()
+    # update_generic_config = UpdateGenericConfig.Field()
+    delete_generic_config = DeleteGenericConfig.Field()
 
 
 def on_role_mutation(sender, **kwargs):
