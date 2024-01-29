@@ -1382,7 +1382,8 @@ class CheckAssignedProfiles(graphene.Mutation):
                                            status=STATUS_WAITING_FOR_APPROVAL).update(status=STATUS_WAITING_FOR_QUEUE)
                     head_insuree = Insuree.objects.filter(family_id=user_profile_queues.family.id,
                                                           legacy_id__isnull=True, head=True).first()
-                    if head_insuree.status == STATUS_WAITING_FOR_QUEUE:
+
+                    if head_insuree and head_insuree.status == STATUS_WAITING_FOR_QUEUE:
                         Family.objects.filter(id=user_profile_queues.family.id).update(status=STATUS_WAITING_FOR_QUEUE)
                     # user_profile_queues.update(user_id=None, is_assigned=False)
                     print("=============  unassigned profile  ==============")
