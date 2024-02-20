@@ -1574,6 +1574,10 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
             has_approver_role = UserRole.objects.filter(user=i_user, role=approver_role).exists()
             logger.info(f"User has approver role: {has_approver_role}")
             print("has_approver_role : ", has_approver_role)
+            WF_Profile_Queue.objects.filter(is_action_taken=False,
+                                            family__validity_to__isnull=False).delete()
+            WF_Profile_Queue.objects.filter(is_action_taken=False,
+                                            family__head_insuree__validity_to__isnull=False).delete()
             if has_approver_role:
                 # user_profile_queue = WF_Profile_Queue.objects.filter(
                 #     user_id__pro_que_user=user[0].id,
