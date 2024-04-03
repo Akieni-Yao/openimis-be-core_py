@@ -1,10 +1,13 @@
 import json
 from typing import Union
 
+from django.apps import apps
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.contenttypes.models import ContentType
 from django.core.serializers.json import DjangoJSONEncoder
 from django.forms.models import model_to_dict
+
+from core.models import AuditLogs
 
 
 def check_authentication(function):
@@ -80,3 +83,15 @@ def get_generic_type(generic_type: Union[str, ContentType]):
         return ContentType.objects.get(model=generic_type.lower())
     else:
         return ContentType.objects.get(model=str(generic_type).lower())
+
+
+def save_audit_log(model_name,app_name, action, new_obj, old_obj, audit_by_id):
+    AuditLogs.objects.create(
+        app_name=app_name,
+        model_name=model_name,
+        action=action,
+        new_obj_id=new_obj.id,
+        old_obj_id=old_obj.id if old_obj else None,
+        audit_by_id=audit_by_id,
+    )
+    return True

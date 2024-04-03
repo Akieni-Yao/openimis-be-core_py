@@ -1124,6 +1124,7 @@ class AuditLogs(models.Model):
     id = models.AutoField(db_column='ID', primary_key=True)
     app_name = models.CharField(db_column="AppName", max_length=256)
     model_name = models.CharField(db_column="ModelName", max_length=256)
+    audit_for = models.CharField(db_column="AuditFor", max_length=256, null=True)
     action = models.CharField(db_column="Action", max_length=256)
     new_obj_id = models.CharField(db_column="NewObjID", max_length=256, blank=True, null=True)
     old_obj_id = models.CharField(db_column="OldObjID", max_length=256, blank=True, null=True)
