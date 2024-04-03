@@ -85,10 +85,11 @@ def get_generic_type(generic_type: Union[str, ContentType]):
         return ContentType.objects.get(model=str(generic_type).lower())
 
 
-def save_audit_log(model_name,app_name, action, new_obj, old_obj, audit_by_id):
+def save_audit_log(app_name, model_name, audit_for, action, new_obj, old_obj, audit_by_id):
     AuditLogs.objects.create(
         app_name=app_name,
         model_name=model_name,
+        audit_for=audit_for,
         action=action,
         new_obj_id=new_obj.id,
         old_obj_id=old_obj.id if old_obj else None,
