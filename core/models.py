@@ -1131,6 +1131,7 @@ class AuditLogs(models.Model):
     changes = models.JSONField(db_column="Changes", blank=True, null=True)
     audit_by_id = models.CharField(db_column="AuditByID", max_length=256)
     created_time = models.DateTimeField(db_column='CreatedTime', auto_now_add=True, null=True)
+    json_ext = JSONField(db_column='JsonExt', blank=True, null=True)
     
     class Meta:
         managed = True
