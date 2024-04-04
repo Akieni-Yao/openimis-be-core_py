@@ -105,10 +105,10 @@ def save_audit_log(app_name, model_name, audit_for, action, new_obj, old_obj, au
         new_obj_id = new_obj.uuid if new_obj else None
         old_obj_id = old_obj.uuid if old_obj else None
         json_ext = {
-            "chf_id": head_insuree.chf_id,
-            "camu_number": head_insuree.camu_number,
-            "other_names": head_insuree.other_names,
-            "last_name": head_insuree.last_name,
+            "chf_id": new_obj.head_insuree.chf_id,
+            "camu_number": new_obj.head_insuree.camu_number,
+            "other_names": new_obj.head_insuree.other_names,
+            "last_name": new_obj.head_insuree.last_name,
         }
         logger.info("JSON extension created for family/Insuree audit log")
     elif audit_for == "family" and model_name == "Insuree":
