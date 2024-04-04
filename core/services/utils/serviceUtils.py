@@ -8,7 +8,8 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.forms.models import model_to_dict
 
 from core.models import AuditLogs
-
+import logging
+logger = logging.getLogger(__name__)
 
 def check_authentication(function):
     def wrapper(self, *args, **kwargs):
@@ -86,6 +87,8 @@ def get_generic_type(generic_type: Union[str, ContentType]):
 
 
 def save_audit_log(app_name, model_name, audit_for, action, new_obj, old_obj, audit_by_id):
+    logger.info("Saving audit log")
+
     json_ext = None
     if audit_for in ["insuree", "family"]:
         json_ext = {
@@ -93,8 +96,9 @@ def save_audit_log(app_name, model_name, audit_for, action, new_obj, old_obj, au
             "camu_number": new_obj.camu_number,
             "other_names": new_obj.other_names,
             "last_name": new_obj.last_name,
-            }
-        
+        }
+        logger.info("JSON extension created for audit log")
+
     AuditLogs.objects.create(
         app_name=app_name,
         model_name=model_name,
@@ -105,4 +109,5 @@ def save_audit_log(app_name, model_name, audit_for, action, new_obj, old_obj, au
         audit_by_id=audit_by_id,
         json_ext=json_ext,
     )
+    logger.info("Audit log created successfully")
     return True
