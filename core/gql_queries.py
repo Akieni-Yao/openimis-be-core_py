@@ -259,6 +259,7 @@ class AuditLogsGQLType(DjangoObjectType):
             "audit_for": ["exact", "icontains"],
             "action": ["exact", "icontains"],
             "audit_by_id": ["exact", "icontains"],
+            "new_obj_id": ["exact"],
         }
         interfaces = (graphene.relay.Node,)
         connection_class = ExtendedConnection

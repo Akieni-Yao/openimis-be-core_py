@@ -88,24 +88,50 @@ def get_generic_type(generic_type: Union[str, ContentType]):
 
 def save_audit_log(app_name, model_name, audit_for, action, new_obj, old_obj, audit_by_id):
     logger.info("Saving audit log")
-
+    new_obj_id = None
+    old_obj_id = None
     json_ext = None
-    if audit_for in ["insuree", "family"]:
+    if audit_for == "insuree" and model_name == "Insuree":
+        new_obj_id = new_obj.uuid if new_obj else None
+        old_obj_id = old_obj.uuid if old_obj else None
         json_ext = {
             "chf_id": new_obj.chf_id,
             "camu_number": new_obj.camu_number,
             "other_names": new_obj.other_names,
             "last_name": new_obj.last_name,
         }
-        logger.info("JSON extension created for audit log")
+        logger.info("JSON extension created for insuree/Insuree audit log")
+    elif audit_for == "family" and model_name == "Family":
+        new_obj_id = new_obj.uuid if new_obj else None
+        old_obj_id = old_obj.uuid if old_obj else None
+        json_ext = {
+            "chf_id": head_insuree.chf_id,
+            "camu_number": head_insuree.camu_number,
+            "other_names": head_insuree.other_names,
+            "last_name": head_insuree.last_name,
+        }
+        logger.info("JSON extension created for family/Insuree audit log")
+    elif audit_for == "family" and model_name == "Insuree":
+        if new_obj and new_obj.family:
+            new_obj_id = new_obj.family.uuid
+        if old_obj and old_obj.family:
+            old_obj_id = old_obj.family.uuid
+            
+        json_ext = {
+            "chf_id": new_obj.chf_id,
+            "camu_number": new_obj.camu_number,
+            "other_names": new_obj.other_names,
+            "last_name": new_obj.last_name,
+        }
+        logger.info("JSON extension created for family/Family audit log")
 
     AuditLogs.objects.create(
         app_name=app_name,
         model_name=model_name,
         audit_for=audit_for,
         action=action,
-        new_obj_id=new_obj.id,
-        old_obj_id=old_obj.id if old_obj else None,
+        new_obj_id=new_obj_id,
+        old_obj_id=old_obj_id,
         audit_by_id=audit_by_id,
         json_ext=json_ext,
     )
