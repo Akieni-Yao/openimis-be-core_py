@@ -45,7 +45,7 @@ from .apps import CoreConfig
 from .constants import APPROVER_ROLE
 from .gql_queries import *
 from .utils import flatten_dict
-from .models import ModuleConfiguration, FieldControl, MutationLog, Language, RoleMutation, UserMutation, GenericConfig
+from .models import ModuleConfiguration, FieldControl, MutationLog, Language, RoleMutation, UserMutation, GenericConfig, AuditLogs
 from .services.roleServices import check_role_unique_name
 from .services.userServices import check_user_unique_email
 from .validation.obligatoryFieldValidation import validate_payload_for_obligatory_fields
@@ -534,6 +534,14 @@ class Query(graphene.ObjectType):
     username_length = graphene.Int()
     all_configs = graphene.List(GenericConfigType)
     generic_config = graphene.Field(GenericConfigType, model_id=graphene.String())
+    
+    get_audit_logs = OrderedDjangoFilterConnectionField(
+        AuditLogsGQLType,
+        orderBy=graphene.List(of_type=graphene.String),
+    )
+    
+    def resolve_get_audit_logs(self, info, **kwargs):
+        return gql_optimizer.query(AuditLogs.objects.all(), info)
 
     def resolve_username_length(self, info, **kwargs):
         if not info.context.user.has_perms(CoreConfig.gql_query_users_perms):

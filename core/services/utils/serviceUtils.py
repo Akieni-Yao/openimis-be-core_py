@@ -86,6 +86,15 @@ def get_generic_type(generic_type: Union[str, ContentType]):
 
 
 def save_audit_log(app_name, model_name, audit_for, action, new_obj, old_obj, audit_by_id):
+    json_ext = None
+    if audit_for in ["insuree", "family"]:
+        json_ext = {
+            "chf_id": new_obj.chf_id,
+            "camu_number": new_obj.camu_number,
+            "other_names": new_obj.other_names,
+            "last_name": new_obj.last_name,
+            }
+        
     AuditLogs.objects.create(
         app_name=app_name,
         model_name=model_name,
@@ -94,5 +103,6 @@ def save_audit_log(app_name, model_name, audit_for, action, new_obj, old_obj, au
         new_obj_id=new_obj.id,
         old_obj_id=old_obj.id if old_obj else None,
         audit_by_id=audit_by_id,
+        json_ext=json_ext,
     )
     return True
