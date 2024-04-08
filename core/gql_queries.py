@@ -7,7 +7,7 @@ from location.models import HealthFacility
 from .apps import CoreConfig
 from django.utils.translation import gettext as _
 from django.core.exceptions import PermissionDenied
-from .models import Station
+from .models import Station, AuditLogs
 
 
 from .utils import prefix_filterset
@@ -249,3 +249,17 @@ class ValidationMessageGQLType(graphene.ObjectType):
     error_code = graphene.Int()
     error_message = graphene.String()
 
+
+class AuditLogsGQLType(DjangoObjectType):
+    class Meta:
+        model = AuditLogs
+        filter_fields = {
+            "app_name": ["exact", "icontains"],
+            "model_name": ["exact", "icontains"],
+            "audit_for": ["exact", "icontains"],
+            "action": ["exact", "icontains"],
+            "audit_by_id": ["exact", "icontains"],
+            "new_obj_id": ["exact"],
+        }
+        interfaces = (graphene.relay.Node,)
+        connection_class = ExtendedConnection

@@ -1118,3 +1118,21 @@ class GenericConfig(UUIDModel, ExtendableModel):
     class Meta:
         managed = True
         db_table = "tblGenericConfig"
+
+
+class AuditLogs(models.Model):
+    id = models.AutoField(db_column='ID', primary_key=True)
+    app_name = models.CharField(db_column="AppName", max_length=256)
+    model_name = models.CharField(db_column="ModelName", max_length=256)
+    audit_for = models.CharField(db_column="AuditFor", max_length=256, null=True)
+    action = models.CharField(db_column="Action", max_length=256)
+    new_obj_id = models.CharField(db_column="NewObjID", max_length=256, blank=True, null=True)
+    old_obj_id = models.CharField(db_column="OldObjID", max_length=256, blank=True, null=True)
+    changes = models.JSONField(db_column="Changes", blank=True, null=True)
+    audit_by_id = models.CharField(db_column="AuditByID", max_length=256)
+    created_time = models.DateTimeField(db_column='CreatedTime', auto_now_add=True, null=True)
+    json_ext = JSONField(db_column='JsonExt', blank=True, null=True)
+    
+    class Meta:
+        managed = True
+        db_table = "tblAuditLogs"
