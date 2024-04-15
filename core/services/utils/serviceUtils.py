@@ -116,6 +116,8 @@ def save_audit_log(app_name, model_name, audit_for, action, new_obj, old_obj, au
             new_obj_id = new_obj.family.uuid
         if old_obj and old_obj.family:
             old_obj_id = old_obj.family.uuid
+        if not new_obj_id or new_obj_id is None:
+            new_obj_id = old_obj_id
             
         json_ext = {
             "chf_id": new_obj.chf_id,
