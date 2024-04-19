@@ -1269,7 +1269,7 @@ def update_or_create_user(data, user):
 
     incoming_email = data.get('email')
     current_user = None
-    if data['uuid']:
+    if 'uuid' in data and data['uuid']:
         current_user = InteractiveUser.objects.filter(user__id=data['uuid']).first()
     station_id = data.get('station_id') if 'station_id' in data.keys() else None
     if station_id:
