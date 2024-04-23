@@ -337,6 +337,8 @@ class InteractiveUser(VersionedModel):
     # a User object from the ASPX to the DAL where it is processed into/against password and private key/salt)
     # dummy_pwd = models.CharField(db_column='DummyPwd', max_length=25, blank=True, null=True)
     email = models.CharField(db_column="EmailId", max_length=200, blank=True, null=True)
+    is_verified = models.BooleanField(default=False)
+
     private_key = models.CharField(
         db_column="PrivateKey",
         max_length=256,

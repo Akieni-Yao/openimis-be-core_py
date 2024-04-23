@@ -1268,7 +1268,9 @@ def update_or_create_user(data, user):
     # client_mutation_label = data.get("client_mutation_label", None)
 
     incoming_email = data.get('email')
-    current_user = InteractiveUser.objects.filter(user__id=data['uuid']).first()
+    current_user = None
+    if 'uuid' in data and data['uuid']:
+        current_user = InteractiveUser.objects.filter(user__id=data['uuid']).first()
     station_id = data.get('station_id') if 'station_id' in data.keys() else None
     if station_id:
         station = Station.objects.get(pk=station_id)
@@ -1297,8 +1299,12 @@ def update_or_create_user(data, user):
     user_uuid = data.pop('uuid') if 'uuid' in data else None
 
     if UT_INTERACTIVE in data["user_types"]:
-        i_user, i_user_created = create_or_update_interactive_user(
-            user_uuid, data, user.id_for_audit, len(data["user_types"]) > 1)
+        if type(user) is AnonymousUser or not user.id:
+            i_user, i_user_created = create_or_update_interactive_user(
+            user_uuid, data, -1, len(data["user_types"]) > 1)
+        else:
+            i_user, i_user_created = create_or_update_interactive_user(
+                user_uuid, data, user.id_for_audit, len(data["user_types"]) > 1)
     else:
         i_user, i_user_created = None, False
     if UT_OFFICER in data["user_types"]:
