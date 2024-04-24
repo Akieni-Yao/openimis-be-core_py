@@ -1513,14 +1513,15 @@ class ResetPasswordMutation(graphene.relay.ClientIDMutation):
             required=True,
             description=gettext_lazy("Username of the account to recover"),
         )
+        is_portal = graphene.Boolean(required=False)
 
     success = graphene.Boolean()
     error = graphene.String()
 
     @classmethod
-    def mutate_and_get_payload(cls, root, info, username, **input):
+    def mutate_and_get_payload(cls, root, info, username, is_portal,**input):
         try:
-            reset_user_password(info.context, username)
+            reset_user_password(info.context, username,is_portal)
             return ResetPasswordMutation(success=True)
         except Exception as exc:
             logger.exception(exc)

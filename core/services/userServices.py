@@ -251,7 +251,7 @@ def check_user_unique_email(user_email):
     return []
 
 
-def reset_user_password(request, username):
+def reset_user_password(request, username, is_portal):
     user = User.objects.get(username=username)
     user.clear_refresh_tokens()
 
@@ -265,6 +265,8 @@ def reset_user_password(request, username):
         logger.info(f"Send mail to reset password for {user} with token '{token}'")
         params = urlencode({"token": token})
         reset_url = f"{settings.FRONTEND_URL}/set_password?{params}"
+        if is_portal:
+            reset_url = f"{settings.PORTAL_FRONTEND}/set_password?{params}"
         message = loader.render_to_string(
             CoreConfig.password_reset_template,
             {
