@@ -1519,7 +1519,7 @@ class ResetPasswordMutation(graphene.relay.ClientIDMutation):
     error = graphene.String()
 
     @classmethod
-    def mutate_and_get_payload(cls, root, info, username, is_portal,**input):
+    def mutate_and_get_payload(cls, root, info, username, is_portal=False,**input):
         try:
             reset_user_password(info.context, username,is_portal)
             return ResetPasswordMutation(success=True)
