@@ -1521,7 +1521,7 @@ class ResetPasswordMutation(graphene.relay.ClientIDMutation):
     @classmethod
     def mutate_and_get_payload(cls, root, info, username, is_portal=False,**input):
         try:
-            reset_user_password(info.context, username,is_portal)
+            reset_user_password(info.context, username, is_portal)
             return ResetPasswordMutation(success=True)
         except Exception as exc:
             logger.exception(exc)
@@ -1541,19 +1541,20 @@ class SetPasswordMutation(graphene.relay.ClientIDMutation):
             required=True, description=gettext_lazy("Username of the user")
         )
         token = graphene.String(
-            required=True, description=gettext_lazy("Token used to validate the user")
+            required=False, description=gettext_lazy("Token used to validate the user")
         )
         new_password = graphene.String(
             required=True, description=gettext_lazy("New password for the user")
         )
+        is_portal = graphene.Boolean(required=False)
 
     success = graphene.Boolean()
     error = graphene.String()
 
     @classmethod
-    def mutate_and_get_payload(cls, root, info, username, token, new_password, **input):
+    def mutate_and_get_payload(cls, root, info, username, token=None, new_password=None, is_portal=False, **input):
         try:
-            set_user_password(info.context, username, token, new_password)
+            set_user_password(info.context, username, token, new_password, is_portal)
             return SetPasswordMutation(success=True)
         except Exception as exc:
             logger.exception(exc)
