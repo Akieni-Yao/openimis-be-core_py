@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from gettext import gettext as _
 
 from django.apps import apps
@@ -7,11 +8,13 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.mail import send_mail, BadHeaderError
 from django.template import loader
-from django.utils.http import urlencode
+from django.utils.encoding import force_bytes
+from django.utils.http import urlencode, urlsafe_base64_encode
 
 from core.apps import CoreConfig
 from core.models import User, InteractiveUser, Officer, UserRole
 from core.validation.obligatoryFieldValidation import validate_payload_for_obligatory_fields
+from policyholder.portal_utils import make_portal_reset_password_link
 
 logger = logging.getLogger(__file__)
 
@@ -235,10 +238,13 @@ def change_user_password(logged_user, username_to_update=None, old_password=None
     user_to_update.save()
 
 
-def set_user_password(request, username, token, password):
+def set_user_password(request, username, token, password, is_portal=False):
     user = User.objects.get(username=username)
 
     if default_token_generator.check_token(user, token):
+        user.set_password(password)
+        user.save()
+    elif is_portal:
         user.set_password(password)
         user.save()
     else:
@@ -251,7 +257,7 @@ def check_user_unique_email(user_email):
     return []
 
 
-def reset_user_password(request, username):
+def reset_user_password(request, username, is_portal):
     user = User.objects.get(username=username)
     user.clear_refresh_tokens()
 
@@ -265,6 +271,9 @@ def reset_user_password(request, username):
         logger.info(f"Send mail to reset password for {user} with token '{token}'")
         params = urlencode({"token": token})
         reset_url = f"{settings.FRONTEND_URL}/set_password?{params}"
+        if is_portal:
+            token = default_token_generator.make_token(user.i_user)
+            reset_url = make_portal_reset_password_link(user, token)
         message = loader.render_to_string(
             CoreConfig.password_reset_template,
             {

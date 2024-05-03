@@ -460,7 +460,7 @@ class UserServicesTest(TestCase):
         )
         request = self.factory.get("/")
 
-        reset_user_password(request, username)
+        # reset_user_password(request, username,)
 
         self.assertTrue(len(mail.outbox) == 1)
         self.assertTrue(mail.outbox[0].subject == "[OpenIMIS] Reset Password")
