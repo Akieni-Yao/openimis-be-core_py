@@ -1565,29 +1565,26 @@ class SetPasswordMutation(graphene.relay.ClientIDMutation):
                 error=gettext_lazy("Failed to set password."),
             )
 
-
 class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
     """Obtain JSON Web Token mutation, with auto-provisioning from tblUsers """
 
+    class Arguments:
+        is_portal = graphene.Boolean(required=False)
     @classmethod
-    def mutate(cls, root, info, **kwargs):
+    def mutate(cls, root, info,  is_portal=False,**kwargs):
         username = kwargs.get("username")
-        is_portal = kwargs.get("is_portal") if 'is_portal' in kwargs else False
         if username:
-            try:
-                user_tuple = User.objects.get_or_create(username=username)
-                if len(user_tuple) > 0:
-                    user_data = user_tuple[0]
-                    if user_data.is_portal_user:
-                        if not is_portal:
-                            raise JSONWebTokenError(_("Please enter valid credentials"))
-                        if not user_data.i_user.is_verified:
-                            raise JSONWebTokenError(_("User is not verified"))
-                    cls.update_profile_queue_for_approver(user_data)
-                else:
-                    logger.debug("Authentication with %s failed and could not be fetched from tblUsers", username)
-            except Exception as e:
-                logger.error("An error occurred during authentication: %s", str(e))
+            user_tuple = User.objects.get_or_create(username=username)
+            if len(user_tuple) > 0:
+                user_data = user_tuple[0]
+                if user_data.is_portal_user:
+                    if not is_portal:
+                        raise JSONWebTokenError(_("Please enter valid credentials"))
+                    if not user_data.i_user.is_verified:
+                        raise JSONWebTokenError(_("User is not verified"))
+                cls.update_profile_queue_for_approver(user_data)
+            else:
+                logger.debug("Authentication with %s failed and could not be fetched from tblUsers", username)
         return super().mutate(cls, info, **kwargs)
 
     def update_profile_queue_for_approver(user):
