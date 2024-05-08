@@ -11,6 +11,7 @@ from datetime import datetime as py_datetime
 from functools import reduce
 from django.utils.translation import gettext_lazy
 from graphene.types.generic import GenericScalar
+from graphql_jwt.exceptions import JSONWebTokenError
 from graphql_jwt.mutations import JSONWebTokenMutation, mixins
 import graphene_django_optimizer as gql_optimizer
 from core.services import (
@@ -45,7 +46,8 @@ from .apps import CoreConfig
 from .constants import APPROVER_ROLE
 from .gql_queries import *
 from .utils import flatten_dict
-from .models import ModuleConfiguration, FieldControl, MutationLog, Language, RoleMutation, UserMutation, GenericConfig, AuditLogs
+from .models import ModuleConfiguration, FieldControl, MutationLog, Language, RoleMutation, UserMutation, GenericConfig, \
+    AuditLogs
 from .services.roleServices import check_role_unique_name
 from .services.userServices import check_user_unique_email
 from .validation.obligatoryFieldValidation import validate_payload_for_obligatory_fields
@@ -534,12 +536,12 @@ class Query(graphene.ObjectType):
     username_length = graphene.Int()
     all_configs = graphene.List(GenericConfigType)
     generic_config = graphene.Field(GenericConfigType, model_id=graphene.String())
-    
+
     get_audit_logs = OrderedDjangoFilterConnectionField(
         AuditLogsGQLType,
         orderBy=graphene.List(of_type=graphene.String),
     )
-    
+
     def resolve_get_audit_logs(self, info, **kwargs):
         return gql_optimizer.query(AuditLogs.objects.all(), info)
 
@@ -1301,7 +1303,7 @@ def update_or_create_user(data, user):
     if UT_INTERACTIVE in data["user_types"]:
         if type(user) is AnonymousUser or not user.id:
             i_user, i_user_created = create_or_update_interactive_user(
-            user_uuid, data, -1, len(data["user_types"]) > 1)
+                user_uuid, data, -1, len(data["user_types"]) > 1)
         else:
             i_user, i_user_created = create_or_update_interactive_user(
                 user_uuid, data, user.id_for_audit, len(data["user_types"]) > 1)
@@ -1421,8 +1423,8 @@ class CreateGenericConfig(graphene.Mutation):
     generic_config = graphene.Field(GenericConfigType)
 
     @staticmethod
-    def mutate(root, info,name, model_name, model_id,json_ext):
-        generic_config = GenericConfig(name=name,model_name=model_name, model_id=model_id,json_ext=json_ext)
+    def mutate(root, info, name, model_name, model_id, json_ext):
+        generic_config = GenericConfig(name=name, model_name=model_name, model_id=model_id, json_ext=json_ext)
         generic_config.save()
         return CreateGenericConfig(generic_config=generic_config)
 
@@ -1519,7 +1521,7 @@ class ResetPasswordMutation(graphene.relay.ClientIDMutation):
     error = graphene.String()
 
     @classmethod
-    def mutate_and_get_payload(cls, root, info, username, is_portal=False,**input):
+    def mutate_and_get_payload(cls, root, info, username, is_portal=False, **input):
         try:
             reset_user_password(info.context, username, is_portal)
             return ResetPasswordMutation(success=True)
@@ -1570,13 +1572,22 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
     @classmethod
     def mutate(cls, root, info, **kwargs):
         username = kwargs.get("username")
-        # consider auto-provisioning
+        is_portal = kwargs.get("is_portal") if 'is_portal' in kwargs else False
         if username:
-            # get_or_create will auto-provision from tblUsers if applicable
-            user = User.objects.get_or_create(username=username)
-            cls.update_profile_queue_for_approver(user)
-            if user:
-                logger.debug("Authentication with %s failed and could not be fetched from tblUsers", username)
+            try:
+                user_tuple = User.objects.get_or_create(username=username)
+                if len(user_tuple) > 0:
+                    user_data = user_tuple[0]
+                    if user_data.is_portal_user:
+                        if not is_portal:
+                            raise JSONWebTokenError(_("Please enter valid credentials"))
+                        if not user_data.i_user.is_verified:
+                            raise JSONWebTokenError(_("User is not verified"))
+                    cls.update_profile_queue_for_approver(user_data)
+                else:
+                    logger.debug("Authentication with %s failed and could not be fetched from tblUsers", username)
+            except Exception as e:
+                logger.error("An error occurred during authentication: %s", str(e))
         return super().mutate(cls, info, **kwargs)
 
     def update_profile_queue_for_approver(user):
