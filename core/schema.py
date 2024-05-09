@@ -1577,11 +1577,13 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
             user_tuple = User.objects.get_or_create(username=username)
             if len(user_tuple) > 0:
                 user_data = user_tuple[0]
-                if user_data.is_portal_user:
-                    if not is_portal:
-                        raise JSONWebTokenError(_("Please enter valid credentials"))
+                if user_data.is_portal_user and is_portal:
                     if not user_data.i_user.is_verified:
                         raise JSONWebTokenError(_("User is not verified"))
+                elif user_data.is_portal_user and not is_portal:
+                    raise JSONWebTokenError(_("Please enter valid credentials"))
+                elif not user_data.is_portal_user and is_portal:
+                    raise JSONWebTokenError(_("Please enter valid credentials"))
                 cls.update_profile_queue_for_approver(user_data)
             else:
                 logger.debug("Authentication with %s failed and could not be fetched from tblUsers", username)
