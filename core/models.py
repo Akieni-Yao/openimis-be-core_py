@@ -338,7 +338,8 @@ class InteractiveUser(VersionedModel):
     # dummy_pwd = models.CharField(db_column='DummyPwd', max_length=25, blank=True, null=True)
     email = models.CharField(db_column="EmailId", max_length=200, blank=True, null=True)
     is_verified = models.BooleanField(default=False)
-
+    is_fosa_emp = models.BooleanField(db_column="IsFosaEmp", default=False)
+    fosa_emp_permissions = models.CharField(db_column="FosaEmpPermissions",max_length=255, null=True)
     private_key = models.CharField(
         db_column="PrivateKey",
         max_length=256,

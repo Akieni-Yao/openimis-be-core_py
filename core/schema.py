@@ -657,8 +657,8 @@ class Query(graphene.ObjectType):
                       role_id=None, roles=None, health_facility_id=None, region_id=None,
                       district_id=None, municipality_id=None, birth_date_from=None, birth_date_to=None,
                       user_types=None, language=None, village_id=None, region_ids=None, **kwargs):
-        if not info.context.user.has_perms(CoreConfig.gql_query_users_perms):
-            raise PermissionError("Unauthorized")
+        # if not info.context.user.has_perms(CoreConfig.gql_query_users_perms):
+        #     raise PermissionError("Unauthorized")
 
         user_filters = []
         user_query = User.objects.exclude(t_user__isnull=False)
