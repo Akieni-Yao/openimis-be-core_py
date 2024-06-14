@@ -12,6 +12,8 @@ import logging
 from django.apps import apps
 from django.core.exceptions import PermissionDenied
 
+from core.models import CamuNotification, User
+
 logger = logging.getLogger(__file__)
 
 __all__ = [
@@ -290,3 +292,23 @@ def generate_qr(data):
     qr_img.save(buffered, format="PNG")
     img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
     return img_str
+
+
+def create_notification(user_id, message, redirect_url):
+    user = User.objects.get(id=user_id)
+    notification = CamuNotification.objects.create(user=user, message=message, redirect_url=redirect_url)
+    return notification
+
+
+def mark_notification_as_read(notification_id):
+    notification = CamuNotification.objects.get(id=notification_id)
+    notification.is_read = True
+    notification.save()
+    return notification
+
+
+def mark_all_notifications_as_read(user_id):
+    notifications = CamuNotification.objects.filter(user_id=user_id, is_read=False)
+    notifications.update(is_read=True)
+    return notifications
+

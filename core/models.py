@@ -1140,3 +1140,17 @@ class AuditLogs(models.Model):
     class Meta:
         managed = True
         db_table = "tblAuditLogs"
+
+
+class CamuNotification(models.Model):
+    title = models.CharField(max_length=255, db_column='Title', null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, db_column='UserId', related_name='camu_notifications')
+    module = models.CharField(max_length=50, db_column='Module', null=True, blank=True)
+    message = models.TextField(db_column='Message')
+    is_read = models.BooleanField(default=False, db_column='IsRead')
+    created_at = models.DateTimeField(auto_now_add=True, db_column='Created At')
+    redirect_url = models.CharField(max_length=255, db_column='RedirectURL', null=True, blank=True)
+
+    class Meta:
+        managed = True
+        db_table = "tblCamuNotification"

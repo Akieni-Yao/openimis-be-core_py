@@ -542,6 +542,11 @@ class Query(graphene.ObjectType):
         orderBy=graphene.List(of_type=graphene.String),
     )
 
+    notifications = graphene.List(NotificationType, user_id=graphene.Int())
+
+    def resolve_notifications(self, info, user_id):
+        return CamuNotification.objects.filter(user_id=user_id).order_by('-created_at')
+
     def resolve_get_audit_logs(self, info, **kwargs):
         return gql_optimizer.query(AuditLogs.objects.all(), info)
 
