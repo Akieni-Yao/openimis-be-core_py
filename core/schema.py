@@ -542,6 +542,11 @@ class Query(graphene.ObjectType):
         orderBy=graphene.List(of_type=graphene.String),
     )
 
+    notifications = graphene.List(NotificationType, user_id=graphene.Int())
+
+    def resolve_notifications(self, info, user_id):
+        return CamuNotification.objects.filter(user_id=user_id).order_by('-created_at')
+
     def resolve_get_audit_logs(self, info, **kwargs):
         return gql_optimizer.query(AuditLogs.objects.all(), info)
 
@@ -1347,6 +1352,11 @@ def set_user_deleted(user):
     try:
         if user.i_user:
             user.i_user.delete_history()
+            try:
+                from workflow.models import WF_Profile_Queue
+                WF_Profile_Queue.objects.filter(is_action_taken=False, user_id=user).update(user_id=None, is_assigned=False)
+            except Exception as e:
+                logger.info("failed to delete dependency from WF_Profile_Queue for" % {'user': str(user)})
         if user.t_user:
             user.t_user.delete_history()
         if user.officer:

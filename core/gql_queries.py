@@ -1,7 +1,8 @@
 import graphene
 import location.gql_queries
 from core import ExtendedConnection, filter_validity
-from core.models import Officer, Role, RoleRight, UserRole, User, InteractiveUser, UserMutation, Language
+from core.models import Officer, Role, RoleRight, UserRole, User, InteractiveUser, UserMutation, Language, \
+    CamuNotification
 from graphene_django import DjangoObjectType
 from location.models import HealthFacility
 from .apps import CoreConfig
@@ -263,3 +264,8 @@ class AuditLogsGQLType(DjangoObjectType):
         }
         interfaces = (graphene.relay.Node,)
         connection_class = ExtendedConnection
+
+
+class NotificationType(DjangoObjectType):
+    class Meta:
+        model = CamuNotification
