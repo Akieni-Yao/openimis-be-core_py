@@ -1154,3 +1154,28 @@ class CamuNotification(models.Model):
     class Meta:
         managed = True
         db_table = "tblCamuNotification"
+
+
+class ErpApiFailedLogs(models.Model):
+    id = models.AutoField(db_column='ID', primary_key=True)
+    module = models.CharField(max_length=50, db_column='Module', null=True)
+    parent = models.ForeignKey('self', on_delete=models.deletion.DO_NOTHING, db_column="Parent",related_name='parent_erp_logs', null=True)
+    action = models.CharField(max_length=50, db_column='Action', null=True)
+    response_status_code = models.IntegerField(
+        db_column='ResponseCode', null=True)
+    response_json = JSONField(
+        db_column='ResponseJson', null=True)
+    request_url = models.CharField(max_length=500, db_column='RequestURL', null=True)
+    message = models.TextField(db_column='Message', null=True)
+    request_data = JSONField(
+        db_column='ProvidedData', null=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_column='CreatedAt', null=True)
+    created_by = models.ForeignKey(User, on_delete=models.DO_NOTHING, db_column='CreatedBy', null=True)
+    resync_status = models.IntegerField(db_column='ResyncStatus', null=True)
+    resync_at = models.DateTimeField(db_column='ResyncAt', null=True)
+    resync_by = models.ForeignKey(User, on_delete=models.DO_NOTHING, db_column='ResyncBy',related_name='erp_resync_by', null=True)
+
+
+    class Meta:
+        managed = True
+        db_table = "tblErpFailedLogs"
