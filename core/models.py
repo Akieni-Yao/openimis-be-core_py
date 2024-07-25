@@ -1157,8 +1157,25 @@ class CamuNotification(models.Model):
 
 
 class ErpApiFailedLogs(models.Model):
+    from medical.models import Service, Item
+    from payment.models import Payment, PaymentPenaltyAndSanction
+    from location.models import HealthFacility
+    from contract.models import Contract
     id = models.AutoField(db_column='ID', primary_key=True)
     module = models.CharField(max_length=50, db_column='Module', null=True)
+    contract = models.ForeignKey(Contract, on_delete=models.deletion.DO_NOTHING, db_column="Contract",
+                                 related_name="contract_erp_logs", null=True)
+    health_facility = models.ForeignKey(HealthFacility, on_delete=models.DO_NOTHING, related_name="hf_erp_logs",
+                                        db_column='HealthFacility', null=True)
+    payment_penalty = models.ForeignKey(PaymentPenaltyAndSanction, on_delete=models.DO_NOTHING,
+                                        related_name="penalty_erp_logs",
+                                        db_column="Penalty", null=True)
+    payment = models.ForeignKey(Payment, on_delete=models.DO_NOTHING, db_column='Payment',
+                                related_name="payment_erp_logs", null=True)
+    service = models.ForeignKey(Service, on_delete=models.DO_NOTHING, db_column='Service',
+                                related_name="service_erp_logs", null=True)
+    item = models.ForeignKey(Item, on_delete=models.DO_NOTHING, db_column='Item', related_name="item_erp_logs",
+                             null=True)
     parent = models.ForeignKey('self', on_delete=models.deletion.DO_NOTHING, db_column="Parent",related_name='parent_erp_logs', null=True)
     action = models.CharField(max_length=50, db_column='Action', null=True)
     response_status_code = models.IntegerField(
