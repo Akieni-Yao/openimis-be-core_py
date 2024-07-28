@@ -1,6 +1,7 @@
 import core
 import graphene
 import qrcode
+import requests
 import time
 import base64
 from io import BytesIO
@@ -314,4 +315,36 @@ def mark_all_notifications_as_read(user_id):
     notifications = CamuNotification.objects.filter(user_id=user_id, is_read=False)
     notifications.update(is_read=True)
     return notifications
+
+def update_or_create_resync(id, user):
+    from core.models import ErpApiFailedLogs
+    from datetime import datetime
+    headers = {
+        'Content-Type': 'application/json',
+        'Tmr-Api-Key': 'test',
+        'Cookie': 'frontend_lang=en_US'
+    }
+    resync_status = 0
+    if id:
+        try:
+            parent_erp_logs = ErpApiFailedLogs.objects.get(pk=id)
+            logger.info(f"Updating ERP Failed logs with ID {id}")
+            url = parent_erp_logs.request_url
+            json_data = parent_erp_logs.request_data
+            response = requests.post(url, headers=headers, json=json_data, verify=False)
+            if response.status_code == 200:
+                resync_status = 1
+            resynced_erp_logs = ErpApiFailedLogs.objects.get(pk=id)
+            resynced_erp_logs.id = None
+            resynced_erp_logs.parent = parent_erp_logs
+            resynced_erp_logs.resync_status = resync_status
+            resynced_erp_logs.resync_at = datetime.now()
+            resynced_erp_logs.resync_by = user
+            resynced_erp_logs.save()
+            logger.info(f"Archived ERP failed logs with ID {id} to history")
+        except ErpApiFailedLogs.DoesNotExist:
+            logger.error(f"ERP API Failed logs with ID {id} not found")
+            raise ValueError("PreAuthorization not found.")
+
+    return resynced_erp_logs
 

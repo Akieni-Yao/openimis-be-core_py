@@ -45,9 +45,9 @@ from insuree.models import Insuree, Family
 from .apps import CoreConfig
 from .constants import APPROVER_ROLE
 from .gql_queries import *
-from .utils import flatten_dict
+from .utils import flatten_dict, update_or_create_resync
 from .models import ModuleConfiguration, FieldControl, MutationLog, Language, RoleMutation, UserMutation, GenericConfig, \
-    AuditLogs
+    AuditLogs, ErpApiFailedLogs
 from .services.roleServices import check_role_unique_name
 from .services.userServices import check_user_unique_email
 from .validation.obligatoryFieldValidation import validate_payload_for_obligatory_fields
@@ -416,6 +416,10 @@ class GenericConfigType(DjangoObjectType):
     class Meta:
         model = GenericConfig
 
+class ERPFailedLogsType(DjangoObjectType):
+    class Meta:
+        model = ErpApiFailedLogs
+
 
 class Query(graphene.ObjectType):
     module_configurations = graphene.List(
@@ -543,6 +547,10 @@ class Query(graphene.ObjectType):
     )
 
     notifications = graphene.List(NotificationType, user_id=graphene.Int())
+
+    erp_api_failed_logs = graphene.List(ERPFailedLogsType)
+    def resolve_erp_api_failed_logs(self, info, **kwargs):
+        return ErpApiFailedLogs.objects.all()
 
     def resolve_notifications(self, info, user_id):
         return CamuNotification.objects.filter(user_id=user_id).order_by('-created_at')
@@ -1658,6 +1666,32 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
         except Exception as e:
             logger.error(f"An error occurred: {str(e)}")
 
+class ERPReSyncMutation(graphene.Mutation):
+    class Arguments:
+        id = graphene.ID(required=True)
+
+    success = graphene.Boolean()
+    message = graphene.String()
+    erp_resync = graphene.Field(ERPFailedLogsType)
+
+    def mutate(self, info, **kwargs):
+        id = kwargs.pop('id', None)
+        user = info.context.user.username
+        try:
+            erp_resync = update_or_create_resync(id, user)
+            return ERPReSyncMutation(
+                success=True,
+                message=f"ERP API logs {'updated' if id else 'created'} successfully.",
+                erp_resync_logs=erp_resync
+            )
+        except Exception as e:
+            logger.error(f"Failed to save ERP API logs: {str(e)}")
+            return ERPReSyncMutation(
+                success=False,
+                message=f"Failed to save ERP API logs: {str(e)}"
+            )
+
+
 
 class Mutation(graphene.ObjectType):
     create_role = CreateRoleMutation.Field()
@@ -1684,6 +1718,7 @@ class Mutation(graphene.ObjectType):
     create_generic_config = CreateGenericConfig.Field()
     # update_generic_config = UpdateGenericConfig.Field()
     delete_generic_config = DeleteGenericConfig.Field()
+    erp_resync_mutation = ERPReSyncMutation.Field()
 
 
 def on_role_mutation(sender, **kwargs):
