@@ -42,7 +42,6 @@ from typing import Optional, List, Dict, Any
 from workflow.models import WF_Profile_Queue
 from workflow.constants import STATUS_WAITING_FOR_APPROVAL, STATUS_WAITING_FOR_QUEUE
 from insuree.models import Insuree, Family
-# from .akanksha import ERPFailedLogsType
 from .apps import CoreConfig
 from .constants import APPROVER_ROLE
 from .gql_queries import *
