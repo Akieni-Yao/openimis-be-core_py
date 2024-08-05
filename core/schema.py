@@ -42,6 +42,7 @@ from typing import Optional, List, Dict, Any
 from workflow.models import WF_Profile_Queue
 from workflow.constants import STATUS_WAITING_FOR_APPROVAL, STATUS_WAITING_FOR_QUEUE
 from insuree.models import Insuree, Family
+# from .akanksha import ERPFailedLogsType
 from .apps import CoreConfig
 from .constants import APPROVER_ROLE
 from .gql_queries import *
@@ -419,6 +420,27 @@ class GenericConfigType(DjangoObjectType):
 class ERPFailedLogsType(DjangoObjectType):
     class Meta:
         model = ErpApiFailedLogs
+        interfaces = (graphene.relay.Node,)
+        filter_fields = {
+            "id": ["exact"],
+            "module": ["exact"],
+            "parent_id__id": ["exact"],
+            "policy_holder__code": ["exact"],
+            "policy_holder__trade_name": ["exact"],
+            "health_facility__code": ["exact"],
+            "health_facility__name": ["exact"],
+            "contract__code": ["exact"],
+            "contract__date_valid_from": ["exact"],
+            "payment__payment_code": ["exact"],
+            "payment__payment_date": ["exact"],
+            "payment_penalty__code": ["exact"],
+            "service__code": ["exact"],
+            "service__name": ["exact"],
+            "item__code": ["exact"],
+            "item__name": ["exact"]
+        }
+        connection_class = ExtendedConnection
+
 
 
 class Query(graphene.ObjectType):
@@ -548,9 +570,25 @@ class Query(graphene.ObjectType):
 
     notifications = graphene.List(NotificationType, user_id=graphene.Int())
 
-    erp_api_failed_logs = graphene.List(ERPFailedLogsType)
+    erp_api_failed_logs = OrderedDjangoFilterConnectionField(
+        ERPFailedLogsType,
+        history=graphene.Boolean(required=False),
+        orderBy=graphene.List(of_type=graphene.String),
+    )
     def resolve_erp_api_failed_logs(self, info, **kwargs):
-        return ErpApiFailedLogs.objects.all()
+        history = kwargs.get('history', False)
+        id = kwargs.get('id', None)
+
+        query = ErpApiFailedLogs.objects.all()
+
+        if id:
+            if history:
+                query = query.filter(parent_id=id)
+            else:
+                query = query.filter(id=id)
+
+        return gql_optimizer.query(query, info)
+
 
     def resolve_notifications(self, info, user_id):
         return CamuNotification.objects.filter(user_id=user_id).order_by('-created_at')

@@ -1161,8 +1161,14 @@ class ErpApiFailedLogs(models.Model):
     from payment.models import Payment, PaymentPenaltyAndSanction
     from location.models import HealthFacility
     from contract.models import Contract
+    from policyholder.models import PolicyHolder
+    from claim.models import Claim
     id = models.AutoField(db_column='ID', primary_key=True)
     module = models.CharField(max_length=50, db_column='Module', null=True)
+    policy_holder = models.ForeignKey(PolicyHolder, db_column="PolicyHolder",
+                                      on_delete=models.deletion.DO_NOTHING, related_name="policyholder_erp_logs", null=True)
+    claim = models.ForeignKey(Claim, on_delete=models.DO_NOTHING,
+                              db_column='Claim', related_name='claim_erp_logs', null=True)
     contract = models.ForeignKey(Contract, on_delete=models.deletion.DO_NOTHING, db_column="Contract",
                                  related_name="contract_erp_logs", null=True)
     health_facility = models.ForeignKey(HealthFacility, on_delete=models.DO_NOTHING, related_name="hf_erp_logs",
