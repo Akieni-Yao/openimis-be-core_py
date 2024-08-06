@@ -1713,13 +1713,13 @@ class ERPReSyncMutation(graphene.Mutation):
 
     def mutate(self, info, **kwargs):
         id = kwargs.pop('id', None)
-        user = info.context.user.username
+        user = info.context.user
         try:
             erp_resync = update_or_create_resync(id, user)
             return ERPReSyncMutation(
                 success=True,
                 message=f"ERP API logs {'updated' if id else 'created'} successfully.",
-                erp_resync_logs=erp_resync
+                erp_resync=erp_resync
             )
         except Exception as e:
             logger.error(f"Failed to save ERP API logs: {str(e)}")
