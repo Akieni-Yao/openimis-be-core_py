@@ -440,6 +440,17 @@ class ERPFailedLogsType(DjangoObjectType):
         }
         connection_class = ExtendedConnection
 
+    def resolve_message(self, info):
+        msg = self.message
+        data = json.loads(msg)
+        message = data["message"]
+        if message == 'Missing required field.':
+            self.message = data["field_name"][0] +','+message
+        elif message == 'Invoice not found.':
+            self.message = message
+        else:
+            self.message = message
+        return self.message
 
 
 class Query(graphene.ObjectType):
