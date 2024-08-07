@@ -440,6 +440,17 @@ class ERPFailedLogsType(DjangoObjectType):
         }
         connection_class = ExtendedConnection
 
+    def resolve_message(self, info):
+        msg = self.message
+        data = json.loads(msg)
+        message = data["message"]
+        if message == 'Missing required field.':
+            self.message = data["field_name"][0] +','+message
+        elif message == 'Invoice not found.':
+            self.message = message
+        else:
+            self.message = message
+        return self.message
 
 
 class Query(graphene.ObjectType):
@@ -1713,13 +1724,13 @@ class ERPReSyncMutation(graphene.Mutation):
 
     def mutate(self, info, **kwargs):
         id = kwargs.pop('id', None)
-        user = info.context.user.username
+        user = info.context.user
         try:
             erp_resync = update_or_create_resync(id, user)
             return ERPReSyncMutation(
                 success=True,
                 message=f"ERP API logs {'updated' if id else 'created'} successfully.",
-                erp_resync_logs=erp_resync
+                erp_resync=erp_resync
             )
         except Exception as e:
             logger.error(f"Failed to save ERP API logs: {str(e)}")
