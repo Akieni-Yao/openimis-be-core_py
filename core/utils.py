@@ -316,6 +316,7 @@ def mark_all_notifications_as_read(user_id):
     notifications.update(is_read=True)
     return notifications
 
+
 def update_or_create_resync(id, user):
     from core.models import ErpApiFailedLogs
     from datetime import datetime
@@ -324,27 +325,67 @@ def update_or_create_resync(id, user):
         'Tmr-Api-Key': 'test',
         'Cookie': 'frontend_lang=en_US'
     }
-    resync_status = 0
+
     if id:
-        try:
-            parent_erp_logs = ErpApiFailedLogs.objects.get(pk=id)
-            logger.info(f"Updating ERP Failed logs with ID {id}")
-            url = parent_erp_logs.request_url
-            json_data = parent_erp_logs.request_data
-            response = requests.post(url, headers=headers, json=json_data, verify=False)
-            if response.status_code == 200:
-                resync_status = 1
-            resynced_erp_logs = ErpApiFailedLogs.objects.get(pk=id)
-            resynced_erp_logs.id = None
-            resynced_erp_logs.parent = parent_erp_logs
-            resynced_erp_logs.resync_status = resync_status
-            resynced_erp_logs.resync_at = datetime.now()
-            resynced_erp_logs.resync_by = user
-            resynced_erp_logs.save()
-            logger.info(f"Archived ERP failed logs with ID {id} to history")
-        except ErpApiFailedLogs.DoesNotExist:
-            logger.error(f"ERP API Failed logs with ID {id} not found")
-            raise ValueError("PreAuthorization not found.")
+        # Find the object using find_object_without_resync to ensure no resynced children exist
+        erp_logs_to_resync = find_object_without_resync(id)
+        if not erp_logs_to_resync:
+            logger.error(f"ERP API Failed logs with ID {id} not found or already resynced")
+            raise ValueError("Data not found or already resynced.")
 
-    return resynced_erp_logs
+        logger.info(f"Updating ERP Failed logs with ID {id}")
+        url = erp_logs_to_resync.request_url
+        json_data = erp_logs_to_resync.request_data
 
+        response = requests.post(url, headers=headers, json=json_data, verify=False)
+        if response.status_code == 200:
+            resync_status = 1
+        else:
+            resync_status = 0  # Update status based on error handling logic
+
+        # Create a new ErpApiFailedLogs object with resync information
+        resynced_erp_logs = ErpApiFailedLogs(
+            module=erp_logs_to_resync.module,
+            action=erp_logs_to_resync.action,
+            response_status_code=response.status_code,
+            response_json=response.json(),
+            request_url=erp_logs_to_resync.request_url,
+            message=response.text,
+            request_data=erp_logs_to_resync.request_data,
+            resync_status=resync_status,
+            resync_at=datetime.now(),
+            resync_by=user,
+            policy_holder=erp_logs_to_resync.policy_holder,
+            claim=erp_logs_to_resync.claim,
+            contract=erp_logs_to_resync.contract,
+            health_facility=erp_logs_to_resync.health_facility,
+            payment_penalty=erp_logs_to_resync.payment_penalty,
+            payment=erp_logs_to_resync.payment,
+            service=erp_logs_to_resync.service,
+            item=erp_logs_to_resync.item
+        )
+
+        # Save the new object first, then set the parent
+        resynced_erp_logs.save()
+        resynced_erp_logs.parent = erp_logs_to_resync
+        resynced_erp_logs.save()
+
+        logger.info(f"Resynced ERP failed logs with ID {id}")
+        return resynced_erp_logs
+
+    else:
+        # Handle case where no ID is provided (if applicable)
+        raise ValueError("ID argument is required for resync operation.")
+
+
+def find_object_without_resync(id):
+    from core.models import ErpApiFailedLogs
+    try:
+        obj = ErpApiFailedLogs.objects.get(pk=id)
+    except ErpApiFailedLogs.DoesNotExist:
+        return None
+
+    if ErpApiFailedLogs.objects.filter(parent=id, resync_by__isnull=False, resync_at__isnull=False).exists():
+        return None
+
+    return obj
