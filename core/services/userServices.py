@@ -12,7 +12,8 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlencode, urlsafe_base64_encode
 
 from core.apps import CoreConfig
-from core.models import User, InteractiveUser, Officer, UserRole
+from core.constants import APPROVER_ROLE
+from core.models import User, InteractiveUser, Officer, UserRole, Role
 from core.validation.obligatoryFieldValidation import validate_payload_for_obligatory_fields
 from policyholder.portal_utils import make_portal_reset_password_link
 
@@ -292,3 +293,15 @@ def reset_user_password(request, username, is_portal):
         return email_to_send
     except BadHeaderError:
         return ValueError("Invalid header found.")
+
+
+def find_approvers():
+    approver_role = Role.objects.filter(name__iexact=APPROVER_ROLE, legacy_id__isnull=True).first()
+    if approver_role:
+        approver_interactive_users = InteractiveUser.objects.filter(
+            id__in=UserRole.objects.filter(role=approver_role).values_list('user_id', flat=True)
+        ).distinct()
+        approvers = User.objects.filter(i_user__in=approver_interactive_users).distinct()
+    else:
+        approvers = []
+    return approvers

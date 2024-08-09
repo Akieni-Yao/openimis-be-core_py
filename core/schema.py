@@ -27,7 +27,7 @@ from core.tasks import openimis_mutation_async
 from django import dispatch
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
-from django.core.exceptions import ValidationError, PermissionDenied
+from django.core.exceptions import ValidationError, PermissionDenied, ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.db.models import Q, Count
@@ -416,6 +416,7 @@ class GenericConfigType(DjangoObjectType):
     class Meta:
         model = GenericConfig
 
+
 class ERPFailedLogsType(DjangoObjectType):
     class Meta:
         model = ErpApiFailedLogs
@@ -452,6 +453,12 @@ class ERPFailedLogsType(DjangoObjectType):
             self.message = message
         return self.message
 
+
+# class CamuNotificationType(DjangoObjectType):
+#     class Meta:
+#         model = CamuNotification
+#         fields = "__all__"
+#
 
 class Query(graphene.ObjectType):
     module_configurations = graphene.List(
@@ -585,6 +592,18 @@ class Query(graphene.ObjectType):
         history=graphene.Boolean(required=False),
         orderBy=graphene.List(of_type=graphene.String),
     )
+    # camu_notifications = OrderedDjangoFilterConnectionField(
+    #     CamuNotificationType,
+    #     id=graphene.String(),
+    #     orderBy=graphene.List(of_type=graphene.String),
+    # )
+
+    # def resolve_camu_notifications(self, info, id=None):
+    #     query = CamuNotification.objects.all()
+    #     if id:
+    #         query = query.filter(id=id)
+    #     return gql_optimizer.query(query, info)
+
     def resolve_erp_api_failed_logs(self, info, **kwargs):
         history = kwargs.get('history', False)
         id = kwargs.get('id', None)
