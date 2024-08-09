@@ -460,6 +460,7 @@ class CamuNotificationType(DjangoObjectType):
         interfaces = (graphene.relay.Node,)
         filter_fields = {
             "id": ["exact"],
+            **prefix_filterset("user__", UserGQLType._meta.filter_fields),
         }
         connection_class = ExtendedConnection
 
