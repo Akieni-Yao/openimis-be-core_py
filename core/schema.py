@@ -4,7 +4,9 @@ import logging
 import re
 import sys
 import uuid
+import threading
 
+import graphene
 from django.utils.translation import gettext as _
 from copy import copy
 from datetime import datetime as py_datetime
@@ -426,7 +428,8 @@ class ERPFailedLogsType(DjangoObjectType):
             "parent_id__id": ["exact"],
             "policy_holder__code": ["exact"],
             "policy_holder__trade_name": ["exact"],
-            "health_facility__code": ["exact"],
+            "policy_holder__date_created": ["exact", "lt", "lte", "gt", "gte"],
+            "health_facility__fosa_code": ["exact"],
             "health_facility__name": ["exact"],
             "contract__code": ["exact"],
             "contract__date_valid_from": ["exact"],
@@ -1716,29 +1719,44 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
 
 class ERPReSyncMutation(graphene.Mutation):
     class Arguments:
-        id = graphene.ID(required=True)
+        ids = graphene.List(graphene.Int, required=True)
 
     success = graphene.Boolean()
     message = graphene.String()
     erp_resync = graphene.Field(ERPFailedLogsType)
 
     def mutate(self, info, **kwargs):
-        id = kwargs.pop('id', None)
+        ids = kwargs.get('ids', [])  # Use get() to avoid potential KeyError
         user = info.context.user
-        try:
-            erp_resync = update_or_create_resync(id, user)
-            return ERPReSyncMutation(
-                success=True,
-                message=f"ERP API logs {'updated' if id else 'created'} successfully.",
-                erp_resync=erp_resync
-            )
-        except Exception as e:
-            logger.error(f"Failed to save ERP API logs: {str(e)}")
-            return ERPReSyncMutation(
-                success=False,
-                message=f"Failed to save ERP API logs: {str(e)}"
-            )
 
+        results = []
+
+        def update_or_create_resync_wrapper(id, user):
+            try:
+                erp_resync = update_or_create_resync(id, user)
+                results.append((True, f"ERP API logs for ID {id} updated successfully."))
+            except Exception as e:
+                logger.error(f"Failed to save ERP API logs for ID {id}: {str(e)}")
+                results.append((False, f"Failed to save ERP API logs for ID {id}: {str(e)}"))
+
+        threads = []
+        for id in ids:
+            thread = threading.Thread(target=update_or_create_resync_wrapper, args=(id, user))
+            thread.start()
+            threads.append(thread)
+
+        # Wait for all threads to finish before returning
+        for thread in threads:
+            thread.join()
+
+        # Aggregate results
+        success = all(res[0] for res in results)
+        messages = "\n".join(res[1] for res in results)
+
+        return ERPReSyncMutation(
+            success=success,
+            message=messages
+        )
 
 
 class Mutation(graphene.ObjectType):
