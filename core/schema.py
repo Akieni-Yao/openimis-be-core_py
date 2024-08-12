@@ -427,6 +427,7 @@ class ERPFailedLogsType(DjangoObjectType):
             "id": ["exact"],
             "module": ["exact"],
             "parent_id__id": ["exact"],
+            "resync_status": ["exact"],
             "claim__code": ["exact", "istartswith", "icontains", "iexact"],
             "claim__date_claimed": ["exact", "lt", "lte", "gt", "gte"],
             "policy_holder__code": ["exact", "istartswith", "icontains", "iexact"],
@@ -452,12 +453,16 @@ class ERPFailedLogsType(DjangoObjectType):
         msg = self.message
         data = json.loads(msg)
         message = data["message"]
+
         if message == 'Missing required field.':
-            self.message = data["field_name"][0] +','+message
+            # Assuming `data["field_name"]` is a list, join its elements into a string
+            field_names = ','.join(data["field_name"])
+            self.message = field_names + ',' + message
         elif message == 'Invoice not found.':
             self.message = message
         else:
             self.message = message
+
         return self.message
 
 
