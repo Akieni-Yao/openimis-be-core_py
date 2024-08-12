@@ -1787,6 +1787,38 @@ class ERPReSyncMutation(graphene.Mutation):
         )
 
 
+class MarkNotificationAsRead(graphene.Mutation):
+    class Arguments:
+        user_id = graphene.String(required=True)
+        notification_id = graphene.String(required=False)
+        read_all = graphene.Boolean(required=False, default_value=False)
+
+    success = graphene.Boolean()
+
+    def mutate(self, info, user_id, notification_id=None, read_all=False):
+        try:
+            user = User.objects.get(id=user_id)
+
+            if read_all:
+                updated_count = CamuNotification.objects.filter(user=user, is_read=False).update(is_read=True)
+                logger.info(f"All notifications for user {user_id} marked as read. Total: {updated_count}")
+            elif notification_id:
+                notification = CamuNotification.objects.get(id=notification_id, user=user)
+                notification.mark_as_read()
+                logger.info(f"Notification {notification_id} for user {user_id} marked as read.")
+            else:
+                logger.warning(f"No action taken for user {user_id}: notification_id and read_all are both not set.")
+                return MarkNotificationAsRead(success=False)
+
+            return MarkNotificationAsRead(success=True)
+        except User.DoesNotExist:
+            logger.error(f"User {user_id} does not exist.")
+            return MarkNotificationAsRead(success=False)
+        except CamuNotification.DoesNotExist:
+            logger.error(f"Notification {notification_id} does not exist for user {user_id}.")
+            return MarkNotificationAsRead(success=False)
+
+
 class Mutation(graphene.ObjectType):
     create_role = CreateRoleMutation.Field()
     update_role = UpdateRoleMutation.Field()
@@ -1813,6 +1845,7 @@ class Mutation(graphene.ObjectType):
     # update_generic_config = UpdateGenericConfig.Field()
     delete_generic_config = DeleteGenericConfig.Field()
     erp_resync_mutation = ERPReSyncMutation.Field()
+    mark_notification_as_read = MarkNotificationAsRead.Field()
 
 
 def on_role_mutation(sender, **kwargs):
