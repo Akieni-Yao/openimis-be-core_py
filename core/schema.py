@@ -1785,8 +1785,8 @@ class ERPReSyncMutation(graphene.Mutation):
 
 class MarkNotificationAsRead(graphene.Mutation):
     class Arguments:
-        user_id = graphene.ID(required=True)
-        notification_id = graphene.ID(required=False)
+        user_id = graphene.String(required=True)
+        notification_id = graphene.String(required=False)
         read_all = graphene.Boolean(required=False, default_value=False)
 
     success = graphene.Boolean()
