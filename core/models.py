@@ -1150,6 +1150,7 @@ class CamuNotification(models.Model):
     is_read = models.BooleanField(default=False, db_column='IsRead')
     created_at = models.DateTimeField(auto_now_add=True, db_column='Created At')
     redirect_url = models.CharField(max_length=255, db_column='RedirectURL', null=True, blank=True)
+    portal_redirect_url = models.CharField(max_length=255, db_column='PortalRedirectURL', null=True, blank=True)
 
     class Meta:
         managed = True
