@@ -101,19 +101,75 @@ def contract_submitted(contract_object):
     NotificationService.notify_users(approvers, "Contract", message, redirect_url, None)
 
 
+def payment_created(payment_obj):
+    try:
+        if not payment_obj or not hasattr(payment_obj, 'id') or not payment_obj.id:
+            raise ValueError("Invalid Payment object or missing ID.")
+        approvers = find_approvers()
+        if not approvers:
+            raise ValueError("No approvers found.")
+        message = contract_payment_status_messages.get('STATUS_CREATED', None)
+        redirect_url = f"/payment/overview/{payment_obj.id}"
+        portal_redirect_url = f"/paymentform/:id={payment_obj.id}"
+        NotificationService.notify_users(approvers, "Payment", message, redirect_url, portal_redirect_url)
+    except Exception as e:
+        print(f"Error in payment_created: {e}")
+
+def payment_updated(payment_obj):
+    try:
+        if not payment_obj or not hasattr(payment_obj, 'id') or not payment_obj.id:
+            raise ValueError("Invalid Payment object or missing ID.")
+        approvers = find_approvers()
+        if not approvers:
+            raise ValueError("No approvers found.")
+        message = contract_payment_status_messages.get('STATUS_CREATED', None)
+        redirect_url = f"/payment/overview/{payment_obj.id}"
+        portal_redirect_url = f"/paymentform/:id={payment_obj.id}"
+        NotificationService.notify_users(approvers, "Payment", message, redirect_url, portal_redirect_url)
+    except Exception as e:
+        print(f"Error in payment_created: {e}")
+
+
+def fosa_created(fosa_obj):
+    try:
+        if not fosa_obj or not hasattr(fosa_obj, 'id') or not fosa_obj.id:
+            raise ValueError("Invalid FOSA object or missing ID.")
+        approvers = find_approvers()
+        if not approvers:
+            raise ValueError("No approvers found.")
+        message = fosa_status_messages.get('FOSA_STATUS_CREATED', None)
+        redirect_url = f"/location/healthFacility/{fosa_obj.id}"
+        NotificationService.notify_users(approvers, "Location", message, redirect_url, None)
+    except Exception as e:
+        print(f"Error in fosa_created: {e}")
+
+
+def claim_created(claim_obj):
+    try:
+        if not claim_obj or not hasattr(claim_obj, 'id') or not claim_obj.id:
+            raise ValueError("Invalid Claim object or missing ID.")
+        approvers = find_approvers()
+        if not approvers:
+            raise ValueError("No approvers found.")
+        message = claim_status_messages.get('STATUS_CREATED', None)
+        redirect_url = f"/claim/healthFacilities/claim/{claim_obj.id}"
+        NotificationService.notify_users(approvers, "Claim", message, redirect_url, None)
+    except Exception as e:
+        print(f"Error in claim_created: {e}")
+
 def create_camu_notification(notification_type, object):
     if notification_type == POLICYHOLDER_CREATION_NT:
         ph_created(object)
     elif notification_type == CONTRACT_CREATION_NT:
         contract_created(object)
     elif notification_type == PAYMENT_CREATION_NT:
-        pass
+        payment_created(object)
     elif notification_type == PENALTY_CREATION_NT:
         penalty_created(object)
     elif notification_type == FOSA_CREATION_NT:
-        pass
+        fosa_created(object)
     elif notification_type == CLAIM_CREATION_NT:
-        pass
+        claim_created(object)
     elif notification_type == PA_REQ_CREATION_NT:
         pa_req_created(object)
     else:

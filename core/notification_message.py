@@ -22,6 +22,14 @@ policy_holder_status_messages = {
     }
 }
 
+# FOSA Status Messages
+fosa_status_messages = {
+    'FOSA_STATUS_CREATED': {
+        'en': 'FOSA Created {fosa_code}',
+        'fr': 'FOSA Status Updated: Created for code {fosa_code}'
+    }
+}
+
 # Insuree Status Messages
 insuree_status_messages = {
     'PH_STATUS_CREATED': {
@@ -132,6 +140,10 @@ penalty_status_messages = {
 
 # Claim Status Messages
 claim_status_messages = {
+    'STATUS_CREATED': {
+        'en': 'Claim Created {claim_code}',
+        'fr': 'Claim Status Updated: Created for code {claim_code}'
+    },
     'STATUS_REJECTED': {
         'en': 'Claim Rejected {claim_code}',
         'fr': 'Claim Status Updated: Rejected for code {claim_code}'
