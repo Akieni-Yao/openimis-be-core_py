@@ -44,6 +44,7 @@ def ph_created(policy_holder):
     except Exception as e:
         print(f"Error in policy_holder_created: {e}")
 
+
 def penalty_created(penalty_object):
     try:
         if not penalty_object or not hasattr(penalty_object, 'id') or not penalty_object.id:
@@ -78,6 +79,21 @@ def contract_created(contract_object):
         print(f"Error in contract_created: {e}")
 
 
+def pa_req_created(pa_req_object):
+    try:
+        if not pa_req_object or not hasattr(pa_req_object, 'id'):
+            raise ValueError("Invalid contract object or missing ID.")
+        approvers = find_approvers()
+        if not approvers:
+            raise ValueError("No approvers found.")
+        message = pre_auth_req_status_messages.get('PA_CREATED', None)
+        pa_req_id = pa_req_object.id if pa_req_object.id else ''
+        redirect_url = f"/claim/healthFacilities/preauthorizationForm/{pa_req_id}"
+        NotificationService.notify_users(approvers, "Claim", message, redirect_url, None)
+    except Exception as e:
+        print(f"Error in contract_created: {e}")
+
+
 def contract_submitted(contract_object):
     approvers = find_approvers()
     message = contract_status_messages.get('STATE_EXECUTABLE', None)
@@ -99,6 +115,6 @@ def create_camu_notification(notification_type, object):
     elif notification_type == CLAIM_CREATION_NT:
         pass
     elif notification_type == PA_REQ_CREATION_NT:
-        pass
+        pa_req_created(object)
     else:
         return None
