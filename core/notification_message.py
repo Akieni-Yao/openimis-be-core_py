@@ -22,27 +22,11 @@ policy_holder_status_messages = {
     }
 }
 
-# Policy Holder Status Messages
+# FOSA Status Messages
 fosa_status_messages = {
     'FOSA_STATUS_CREATED': {
         'en': 'FOSA Created {fosa_code}',
         'fr': 'FOSA Status Updated: Created for code {fosa_code}'
-    },
-    'FOSA_STATUS_PENDING': {
-        'en': 'FOSA Pending {fosa_code}',
-        'fr': 'FOSA Status Updated: Pending for code {fosa_code}'
-    },
-    'FOSA_STATUS_APPROVED': {
-        'en': 'FOSA Approved {fosa_code}',
-        'fr': 'FOSA Status Updated: Approved for code {fosa_code}'
-    },
-    'FOSA_STATUS_REJECTED': {
-        'en': 'FOSA Rejected {fosa_code}',
-        'fr': 'FOSA Status Updated: Rejected for code {fosa_code}'
-    },
-    'FOSA_STATUS_REWORK': {
-        'en': 'FOSA Rework {fosa_code}',
-        'fr': 'FOSA Status Updated: Rework for code {fosa_code}'
     }
 }
 
