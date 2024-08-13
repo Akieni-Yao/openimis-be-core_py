@@ -1,9 +1,12 @@
 import base64
+import logging
 
 from core.constants import *
 from core.models import CamuNotification
 from core.notification_message import *
 from core.services.userServices import find_approvers
+
+logger = logging.getLogger(__name__)
 
 
 def base64_encode(input_string):
@@ -33,65 +36,157 @@ class NotificationService:
 
 def ph_created(policy_holder):
     try:
+        # Validate the policy_holder object and ID
         if not policy_holder or not hasattr(policy_holder, 'id') or not policy_holder.id:
             raise ValueError("Invalid Policy Holder object or missing ID.")
+
+        # Find approvers
         approvers = find_approvers()
         if not approvers:
             raise ValueError("No approvers found.")
-        message = policy_holder_status_messages.get('PH_STATUS_CREATED', None)
+
+        # Retrieve the message template and format the messages
+        message_template = policy_holder_status_messages.get('PH_STATUS_CREATED', None)
+        if not message_template:
+            raise ValueError("Message template not found for PH_STATUS_CREATED.")
+
+        message_en = message_template['en'].format(policy_holder_code=policy_holder.code)
+        message_fr = message_template['fr'].format(policy_holder_code=policy_holder.code)
+        message = {
+            'en': message_en,
+            'fr': message_fr
+        }
+
+        # Construct the redirect URL
         redirect_url = f"/policyHolders/policyHolder/{policy_holder.id}"
+
+        # Notify the users
         NotificationService.notify_users(approvers, "Policy Holder", message, redirect_url, None)
+        logging.info(f"Notification sent successfully for Policy Holder ID {policy_holder.id}.")
+
     except Exception as e:
-        print(f"Error in policy_holder_created: {e}")
+        logging.error(f"Error in policy_holder_created: {e}", exc_info=True)
 
 
 def penalty_created(penalty_object):
     try:
+        # Validate the penalty_object
         if not penalty_object or not hasattr(penalty_object, 'id') or not penalty_object.id:
             raise ValueError("Invalid penalty object or missing ID.")
+
+        # Find approvers
         approvers = find_approvers()
         if not approvers:
             raise ValueError("No approvers found.")
-        message = penalty_status_messages.get('PENALTY_NOT_PAID', None)
+
+        # Retrieve the message template and format the messages
+        message_template = penalty_status_messages.get('PENALTY_NOT_PAID', None)
+        if not message_template:
+            raise ValueError("Message template not found for PENALTY_NOT_PAID.")
+
+        message_en = message_template['en'].format(penalty_code=penalty_object.code)
+        message_fr = message_template['fr'].format(penalty_code=penalty_object.code)
+        message = {
+            'en': message_en,
+            'fr': message_fr
+        }
+
+        # Encode penalty ID and construct redirect URL
         id_string = f"PaymentPenaltyAndSanctionType:{penalty_object.id}"
         encoded_str = base64_encode(id_string)
         if not encoded_str:
             raise ValueError("Failed to encode penalty ID.")
+
         redirect_url = f"/payment/paymentpenalty/overview/{encoded_str}"
+
+        # Notify users
         NotificationService.notify_users(approvers, "Penalty", message, redirect_url, None)
 
+        # Log successful notification
+        logging.info(f"Notification sent successfully for Penalty ID {penalty_object.id}.")
+
     except Exception as e:
-        print(f"Error in penalty_created: {e}")
+        # Log the exception with traceback
+        logging.error(f"Error in penalty_created: {e}", exc_info=True)
 
 
 def contract_created(contract_object):
     try:
-        if not contract_object or not hasattr(contract_object, 'id'):
-            raise ValueError("Invalid contract object or missing ID.")
+        # Validate the contract_object
+        if not contract_object or not hasattr(contract_object, 'id') or not hasattr(contract_object, 'code'):
+            raise ValueError("Invalid contract object or missing ID/code.")
+
+        # Find approvers
         approvers = find_approvers()
         if not approvers:
             raise ValueError("No approvers found.")
-        message = contract_status_messages.get('STATE_DRAFT', None)
+
+        # Retrieve the message template and format the message
+        message_template = contract_status_messages.get('STATE_DRAFT', None)
+        if not message_template:
+            raise ValueError("Message template not found for STATE_DRAFT.")
+
+        # Format the message with the contract_code
+        message = {
+            'en': message_template['en'].format(contract_code=contract_object.code),
+            'fr': message_template['fr'].format(contract_code=contract_object.code)
+        }
+
+        # Construct the redirect URL
         contract_id = contract_object.id if contract_object.id else ''
         redirect_url = f"/contracts/contract/{contract_id}"
-        NotificationService.notify_users(approvers, "Contract", message, redirect_url, 'penalty_created')
+        portal_redirect_url = f"/contract/:id={contract_id}"
+
+        # Notify users
+        NotificationService.notify_users(approvers, "Contract", message, redirect_url, portal_redirect_url)
+
+        # Log successful notification
+        logging.info(f"Notification sent successfully for Contract Code {contract_object.code}.")
+
     except Exception as e:
-        print(f"Error in contract_created: {e}")
+        # Log the exception with traceback
+        logging.error(f"Error in contract_created: {e}", exc_info=True)
 
 
 def pa_req_created(pa_req_object):
     try:
-        if not pa_req_object or not hasattr(pa_req_object, 'id'):
-            raise ValueError("Invalid contract object or missing ID.")
+        # Validate the pa_req_object
+        if not pa_req_object or not hasattr(pa_req_object, 'id') or not hasattr(pa_req_object, 'code'):
+            raise ValueError("Invalid Prior Authorization Request object or missing ID/code.")
+
+        # Find approvers
         approvers = find_approvers()
         if not approvers:
             raise ValueError("No approvers found.")
-        message = pre_auth_req_status_messages.get('PA_CREATED', None)
+
+        # Retrieve the message template and format the message
+        message_template = pre_auth_req_status_messages.get('PA_CREATED', None)
+        if not message_template:
+            raise ValueError("Message template not found for PA_CREATED.")
+
+        # Format the message with the auth_code
+        message = {
+            'en': message_template['en'].format(auth_code=pa_req_object.code),
+            'fr': message_template['fr'].format(auth_code=pa_req_object.code)
+        }
+        # Encode penalty ID and construct redirect URL
+        id_string = f"PreAuthorizationType:{pa_req_object.id}"
+        encoded_str = base64_encode(id_string)
+        if not encoded_str:
+            raise ValueError("Failed to encode Pre Authorization ID.")
+        # Construct the redirect URL
         pa_req_id = pa_req_object.id if pa_req_object.id else ''
         redirect_url = f"/claim/healthFacilities/preauthorizationForm/{pa_req_id}"
-        NotificationService.notify_users(approvers, "Claim", message, redirect_url, None)
+        portal_redirect_url = f"/autharizationForm/:id={id_string}"
+        # Notify users
+        NotificationService.notify_users(approvers, "Claim", message, redirect_url, portal_redirect_url)
+
+        # Log successful notification
+        logging.info(f"Notification sent successfully for Prior Authorization Request Code {pa_req_object.code}.")
+
     except Exception as e:
-        print(f"Error in contract_created: {e}")
+        # Log the exception with traceback
+        logging.error(f"Error in pa_req_created: {e}", exc_info=True)
 
 
 def contract_submitted(contract_object):
@@ -114,6 +209,7 @@ def payment_created(payment_obj):
         NotificationService.notify_users(approvers, "Payment", message, redirect_url, portal_redirect_url)
     except Exception as e:
         print(f"Error in payment_created: {e}")
+
 
 def payment_updated(payment_obj):
     try:
@@ -156,6 +252,7 @@ def claim_created(claim_obj):
         NotificationService.notify_users(approvers, "Claim", message, redirect_url, None)
     except Exception as e:
         print(f"Error in claim_created: {e}")
+
 
 def create_camu_notification(notification_type, object):
     if notification_type == POLICYHOLDER_CREATION_NT:
