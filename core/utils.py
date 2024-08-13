@@ -382,7 +382,7 @@ def update_or_create_resync(id, user):
             resynced_erp_logs.save()
 
             logger.info(f"Created new ERP failed logs entry due to failed resync with ID {id}")
-            return resynced_erp_logs
+            return erp_logs_to_resync.resync_status
 
     else:
         # Handle case where no ID is provided (if applicable)

@@ -122,7 +122,20 @@ def payment_updated(payment_obj):
         approvers = find_approvers()
         if not approvers:
             raise ValueError("No approvers found.")
-        message = contract_payment_status_messages.get('STATUS_CREATED', None)
+        payment_status = payment_obj.status
+        if payment_status == 1:
+            msg = "STATUS_CREATED"
+        elif payment_status == 2:
+            msg = "STATUS_PENDING"
+        elif payment_status == 3:
+            msg = "STATUS_PROCESSING"
+        elif payment_status == 4:
+            msg = "STATUS_OVERDUE"
+        elif payment_status == 5:
+            msg = "STATUS_APPROVED"
+        else:
+            msg = "STATUS_REJECTED"
+        message = contract_payment_status_messages.get(msg, None)
         redirect_url = f"/payment/overview/{payment_obj.id}"
         portal_redirect_url = f"/paymentform/:id={payment_obj.id}"
         NotificationService.notify_users(approvers, "Payment", message, redirect_url, portal_redirect_url)
@@ -152,6 +165,35 @@ def claim_created(claim_obj):
         if not approvers:
             raise ValueError("No approvers found.")
         message = claim_status_messages.get('STATUS_CREATED', None)
+        redirect_url = f"/claim/healthFacilities/claim/{claim_obj.id}"
+        NotificationService.notify_users(approvers, "Claim", message, redirect_url, None)
+    except Exception as e:
+        print(f"Error in claim_created: {e}")
+
+
+def claim_updated(claim_obj):
+    try:
+        if not claim_obj or not hasattr(claim_obj, 'id') or not claim_obj.id:
+            raise ValueError("Invalid Claim object or missing ID.")
+        approvers = find_approvers()
+        if not approvers:
+            raise ValueError("No approvers found.")
+        claim_status = claim_obj.status
+        if claim_status == 1:
+            msg = "STATUS_REJECTED"
+        elif claim_status == 2:
+            msg = "STATUS_ENTERED"
+        elif claim_status == 4:
+            msg = "STATUS_CHECKED"
+        elif claim_status == 8:
+            msg = "STATUS_PROCESSED"
+        elif claim_status == 16:
+            msg = "STATUS_VALUATED"
+        elif claim_status == 32:
+            msg = "STATUS_REWORK"
+        elif claim_status == 64:
+            msg = "STATUS_PAID"
+        message = claim_status_messages.get(msg, None)
         redirect_url = f"/claim/healthFacilities/claim/{claim_obj.id}"
         NotificationService.notify_users(approvers, "Claim", message, redirect_url, None)
     except Exception as e:
