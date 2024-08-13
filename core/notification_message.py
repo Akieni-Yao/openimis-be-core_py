@@ -22,6 +22,30 @@ policy_holder_status_messages = {
     }
 }
 
+# Policy Holder Status Messages
+fosa_status_messages = {
+    'FOSA_STATUS_CREATED': {
+        'en': 'FOSA Created {fosa_code}',
+        'fr': 'FOSA Status Updated: Created for code {fosa_code}'
+    },
+    'FOSA_STATUS_PENDING': {
+        'en': 'FOSA Pending {fosa_code}',
+        'fr': 'FOSA Status Updated: Pending for code {fosa_code}'
+    },
+    'FOSA_STATUS_APPROVED': {
+        'en': 'FOSA Approved {fosa_code}',
+        'fr': 'FOSA Status Updated: Approved for code {fosa_code}'
+    },
+    'FOSA_STATUS_REJECTED': {
+        'en': 'FOSA Rejected {fosa_code}',
+        'fr': 'FOSA Status Updated: Rejected for code {fosa_code}'
+    },
+    'FOSA_STATUS_REWORK': {
+        'en': 'FOSA Rework {fosa_code}',
+        'fr': 'FOSA Status Updated: Rework for code {fosa_code}'
+    }
+}
+
 # Insuree Status Messages
 insuree_status_messages = {
     'PH_STATUS_CREATED': {
@@ -132,6 +156,10 @@ penalty_status_messages = {
 
 # Claim Status Messages
 claim_status_messages = {
+    'STATUS_CREATED': {
+        'en': 'Claim Created {claim_code}',
+        'fr': 'Claim Status Updated: Created for code {claim_code}'
+    },
     'STATUS_REJECTED': {
         'en': 'Claim Rejected {claim_code}',
         'fr': 'Claim Status Updated: Rejected for code {claim_code}'
