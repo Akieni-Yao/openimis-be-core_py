@@ -616,7 +616,7 @@ class Query(graphene.ObjectType):
 
     def resolve_camu_notifications(self, info, **kwargs):
         id = kwargs.get('id', None)
-        query = CamuNotification.objects.all()
+        query = CamuNotification.objects.filter(is_read=False)
         if id:
             query = query.filter(id=id)
         return gql_optimizer.query(query, info)
