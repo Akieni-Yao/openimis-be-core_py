@@ -254,6 +254,35 @@ def claim_created(claim_obj):
         print(f"Error in claim_created: {e}")
 
 
+def claim_updated(claim_obj):
+    try:
+        if not claim_obj or not hasattr(claim_obj, 'id') or not claim_obj.id:
+            raise ValueError("Invalid Claim object or missing ID.")
+        approvers = find_approvers()
+        if not approvers:
+            raise ValueError("No approvers found.")
+        claim_status = claim_obj.status
+        if claim_status == 1:
+            msg = "STATUS_REJECTED"
+        elif claim_status == 2:
+            msg = "STATUS_ENTERED"
+        elif claim_status == 4:
+            msg = "STATUS_CHECKED"
+        elif claim_status == 8:
+            msg = "STATUS_PROCESSED"
+        elif claim_status == 16:
+            msg = "STATUS_VALUATED"
+        elif claim_status == 32:
+            msg = "STATUS_REWORK"
+        elif claim_status == 64:
+            msg = "STATUS_PAID"
+        message = claim_status_messages.get(msg, None)
+        redirect_url = f"/claim/healthFacilities/claim/{claim_obj.id}"
+        NotificationService.notify_users(approvers, "Claim", message, redirect_url, None)
+    except Exception as e:
+        print(f"Error in claim_created: {e}")
+
+
 def create_camu_notification(notification_type, object):
     if notification_type == POLICYHOLDER_CREATION_NT:
         ph_created(object)

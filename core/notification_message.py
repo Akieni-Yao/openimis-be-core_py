@@ -88,9 +88,17 @@ contract_payment_status_messages = {
         'en': 'Contract Payment Processing {contract_code}',
         'fr': 'Contract Payment Status Updated: Processing for code {contract_code}'
     },
+    'STATUS_OVERDUE': {
+        'en': 'Contract Payment Overdue {contract_code}',
+        'fr': 'Contract Payment Status Updated: Overdue for code {contract_code}'
+    },
     'STATUS_APPROVED': {
         'en': 'Contract Payment Approved {contract_code}',
         'fr': 'Contract Payment Status Updated: Approved for code {contract_code}'
+    },
+    'STATUS_REJECTED': {
+        'en': 'Contract Payment Rejected {contract_code}',
+        'fr': 'Contract Payment Status Updated: Rejected for code {contract_code}'
     }
 }
 
