@@ -4,7 +4,9 @@ import logging
 import re
 import sys
 import uuid
+import threading
 
+import graphene
 from django.utils.translation import gettext as _
 from copy import copy
 from datetime import datetime as py_datetime
@@ -27,7 +29,7 @@ from core.tasks import openimis_mutation_async
 from django import dispatch
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
-from django.core.exceptions import ValidationError, PermissionDenied
+from django.core.exceptions import ValidationError, PermissionDenied, ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.db.models import Q, Count
@@ -45,9 +47,9 @@ from insuree.models import Insuree, Family
 from .apps import CoreConfig
 from .constants import APPROVER_ROLE
 from .gql_queries import *
-from .utils import flatten_dict
+from .utils import flatten_dict, update_or_create_resync
 from .models import ModuleConfiguration, FieldControl, MutationLog, Language, RoleMutation, UserMutation, GenericConfig, \
-    AuditLogs
+    AuditLogs, ErpApiFailedLogs
 from .services.roleServices import check_role_unique_name
 from .services.userServices import check_user_unique_email
 from .validation.obligatoryFieldValidation import validate_payload_for_obligatory_fields
@@ -417,6 +419,64 @@ class GenericConfigType(DjangoObjectType):
         model = GenericConfig
 
 
+class ERPFailedLogsType(DjangoObjectType):
+    class Meta:
+        model = ErpApiFailedLogs
+        interfaces = (graphene.relay.Node,)
+        filter_fields = {
+            "id": ["exact"],
+            "module": ["exact"],
+            "parent_id__id": ["exact"],
+            "resync_status": ["exact"],
+            "claim__code": ["exact", "istartswith", "icontains", "iexact"],
+            "claim__date_claimed": ["exact", "lt", "lte", "gt", "gte"],
+            "policy_holder__code": ["exact", "istartswith", "icontains", "iexact"],
+            "policy_holder__trade_name": ["exact", "istartswith", "icontains", "iexact"],
+            "policy_holder__date_created": ["exact", "lt", "lte", "gt", "gte"],
+            "health_facility__fosa_code": ["exact", "istartswith", "icontains", "iexact"],
+            "health_facility__name": ["exact", "istartswith", "icontains", "iexact"],
+            "contract__code": ["exact", "istartswith", "icontains", "iexact"],
+            "contract__date_valid_from": ["exact", "lt", "lte", "gt", "gte", "isnull"],
+            "payment__payment_code": ["exact", "istartswith", "icontains", "iexact"],
+            "payment__payment_date": ["exact", "lt", "lte", "gt", "gte", "isnull"],
+            "payment__request_date": ["exact", "lt", "lte", "gt", "gte", "isnull"],
+            "payment_penalty__code": ["exact", "istartswith", "icontains", "iexact"],
+            "payment_penalty__date_valid_from": ["exact", "gt", "gte", "isnull"],
+            "service__code": ["exact", "istartswith", "icontains", "iexact"],
+            "service__name": ["exact", "istartswith", "icontains", "iexact"],
+            "item__code": ["exact", "istartswith", "icontains", "iexact"],
+            "item__name": ["exact", "istartswith", "icontains", "iexact"]
+        }
+        connection_class = ExtendedConnection
+
+    def resolve_message(self, info):
+        msg = self.message
+        data = json.loads(msg)
+        message = data["message"]
+
+        if message == 'Missing required field.':
+            # Assuming `data["field_name"]` is a list, join its elements into a string
+            field_names = ','.join(data["field_name"])
+            self.message = field_names + ',' + message
+        elif message == 'Invoice not found.':
+            self.message = message
+        else:
+            self.message = message
+
+        return self.message
+
+
+class CamuNotificationType(DjangoObjectType):
+    class Meta:
+        model = CamuNotification
+        interfaces = (graphene.relay.Node,)
+        filter_fields = {
+            "id": ["exact"],
+            **prefix_filterset("user__", UserGQLType._meta.filter_fields),
+        }
+        connection_class = ExtendedConnection
+
+
 class Query(graphene.ObjectType):
     module_configurations = graphene.List(
         ModuleConfigurationGQLType,
@@ -543,6 +603,38 @@ class Query(graphene.ObjectType):
     )
 
     notifications = graphene.List(NotificationType, user_id=graphene.Int())
+
+    erp_api_failed_logs = OrderedDjangoFilterConnectionField(
+        ERPFailedLogsType,
+        history=graphene.Boolean(required=False),
+        orderBy=graphene.List(of_type=graphene.String),
+    )
+    camu_notifications = OrderedDjangoFilterConnectionField(
+        CamuNotificationType,
+        orderBy=graphene.List(of_type=graphene.String),
+    )
+
+    def resolve_camu_notifications(self, info, **kwargs):
+        id = kwargs.get('id', None)
+        query = CamuNotification.objects.filter(is_read=False)
+        if id:
+            query = query.filter(id=id)
+        return gql_optimizer.query(query, info)
+
+    def resolve_erp_api_failed_logs(self, info, **kwargs):
+        history = kwargs.get('history', False)
+        id = kwargs.get('id', None)
+
+        query = ErpApiFailedLogs.objects.all()
+
+        if id:
+            if history:
+                query = query.filter(parent_id=id)
+            else:
+                query = query.filter(id=id)
+
+        return gql_optimizer.query(query, info)
+
 
     def resolve_notifications(self, info, user_id):
         return CamuNotification.objects.filter(user_id=user_id).order_by('-created_at')
@@ -1659,6 +1751,80 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
             logger.error(f"An error occurred: {str(e)}")
 
 
+class ERPReSyncMutation(graphene.Mutation):
+    class Arguments:
+        ids = graphene.List(graphene.Int, required=True)
+
+    success = graphene.Boolean()
+    message = graphene.String()
+    resync_status = graphene.String()
+
+    def mutate(self, info, **kwargs):
+        ids = kwargs.get('ids', [])
+        user = info.context.user
+
+        results = []
+
+        def update_or_create_resync_wrapper(id, user):
+            try:
+                resync_status = update_or_create_resync(id, user)
+                results.append((True, f"ERP API logs for ID {id} updated successfully.", resync_status))
+            except Exception as e:
+                logger.error(f"Failed to save ERP API logs for ID {id}: {str(e)}")
+                results.append((False, f"Failed to save ERP API logs for ID {id}: {str(e)}", None))
+
+        threads = []
+        for id in ids:
+            thread = threading.Thread(target=update_or_create_resync_wrapper, args=(id, user))
+            thread.start()
+            threads.append(thread)
+
+        for thread in threads:
+            thread.join()
+
+        success = all(res[0] for res in results)
+        messages = "\n".join(res[1] for res in results)
+        resync_status = "\n".join(str(res[2]) for res in results if res[2] is not None)
+
+        return ERPReSyncMutation(
+            success=success,
+            resync_status=resync_status,
+            message=messages
+        )
+
+
+class MarkNotificationAsRead(graphene.Mutation):
+    class Arguments:
+        user_id = graphene.String(required=True)
+        notification_id = graphene.String(required=False)
+        read_all = graphene.Boolean(required=False, default_value=False)
+
+    success = graphene.Boolean()
+
+    def mutate(self, info, user_id, notification_id=None, read_all=False):
+        try:
+            user = User.objects.get(id=user_id)
+
+            if read_all:
+                updated_count = CamuNotification.objects.filter(user=user, is_read=False).update(is_read=True)
+                logger.info(f"All notifications for user {user_id} marked as read. Total: {updated_count}")
+            elif notification_id:
+                notification = CamuNotification.objects.get(id=notification_id, user=user)
+                notification.mark_as_read()
+                logger.info(f"Notification {notification_id} for user {user_id} marked as read.")
+            else:
+                logger.warning(f"No action taken for user {user_id}: notification_id and read_all are both not set.")
+                return MarkNotificationAsRead(success=False)
+
+            return MarkNotificationAsRead(success=True)
+        except User.DoesNotExist:
+            logger.error(f"User {user_id} does not exist.")
+            return MarkNotificationAsRead(success=False)
+        except CamuNotification.DoesNotExist:
+            logger.error(f"Notification {notification_id} does not exist for user {user_id}.")
+            return MarkNotificationAsRead(success=False)
+
+
 class Mutation(graphene.ObjectType):
     create_role = CreateRoleMutation.Field()
     update_role = UpdateRoleMutation.Field()
@@ -1684,6 +1850,8 @@ class Mutation(graphene.ObjectType):
     create_generic_config = CreateGenericConfig.Field()
     # update_generic_config = UpdateGenericConfig.Field()
     delete_generic_config = DeleteGenericConfig.Field()
+    erp_resync_mutation = ERPReSyncMutation.Field()
+    mark_notification_as_read = MarkNotificationAsRead.Field()
 
 
 def on_role_mutation(sender, **kwargs):

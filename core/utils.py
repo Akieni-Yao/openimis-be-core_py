@@ -1,6 +1,7 @@
 import core
 import graphene
 import qrcode
+import requests
 import time
 import base64
 from io import BytesIO
@@ -314,3 +315,87 @@ def mark_all_notifications_as_read(user_id):
     notifications.update(is_read=True)
     return notifications
 
+
+def update_or_create_resync(id, user):
+    from core.models import ErpApiFailedLogs
+    from datetime import datetime
+    headers = {
+        'Content-Type': 'application/json',
+        'Tmr-Api-Key': 'test',
+        'Cookie': 'frontend_lang=en_US'
+    }
+
+    if id:
+        # Find the object using find_object_without_resync with status 0
+        erp_logs_to_resync = find_object_without_resync(id)
+        if not erp_logs_to_resync:
+            logger.error(f"ERP API Failed logs with ID {id} not found or already resynced")
+            raise ValueError("Data not found or already resynced.")
+
+        logger.info(f"Updating ERP Failed logs with ID {id}")
+        url = erp_logs_to_resync.request_url
+        json_data = erp_logs_to_resync.request_data
+
+        response = requests.post(url, headers=headers, json=json_data, verify=False)
+
+        if response.status_code == 200:
+            # Update the original entry with resync_status = 1
+            erp_logs_to_resync.resync_status = 1
+            erp_logs_to_resync.resync_at = datetime.now()
+            erp_logs_to_resync.resync_by = user
+            erp_logs_to_resync.save()
+            logger.info(f"Successfully resynced ERP failed logs with ID {id}")
+            return erp_logs_to_resync
+        else:
+            # Update the original entry with resync_status = -1
+            erp_logs_to_resync.resync_status = -1
+            erp_logs_to_resync.resync_at = datetime.now()
+            erp_logs_to_resync.resync_by = user
+            erp_logs_to_resync.save()
+
+            # Create a new entry with resync_status = 0
+            resynced_erp_logs = ErpApiFailedLogs(
+                module=erp_logs_to_resync.module,
+                action=erp_logs_to_resync.action,
+                response_status_code=response.status_code,
+                response_json=response.json(),
+                request_url=erp_logs_to_resync.request_url,
+                message=response.text,
+                request_data=erp_logs_to_resync.request_data,
+                resync_status=0,  # Indicating the new entry is awaiting resync
+                resync_at=None,  # No resync yet for this new entry
+                resync_by=None,
+                policy_holder=erp_logs_to_resync.policy_holder,
+                claim=erp_logs_to_resync.claim,
+                contract=erp_logs_to_resync.contract,
+                health_facility=erp_logs_to_resync.health_facility,
+                payment_penalty=erp_logs_to_resync.payment_penalty,
+                payment=erp_logs_to_resync.payment,
+                service=erp_logs_to_resync.service,
+                item=erp_logs_to_resync.item
+            )
+
+            # Save the new object and set the parent
+            resynced_erp_logs.save()
+            resynced_erp_logs.parent = erp_logs_to_resync
+            resynced_erp_logs.save()
+
+            logger.info(f"Created new ERP failed logs entry due to failed resync with ID {id}")
+            return erp_logs_to_resync.resync_status
+
+    else:
+        # Handle case where no ID is provided (if applicable)
+        raise ValueError("ID argument is required for resync operation.")
+
+
+def find_object_without_resync(id):
+    from core.models import ErpApiFailedLogs
+    try:
+        obj = ErpApiFailedLogs.objects.get(pk=id, resync_status=0)  # Fetch object with status 0
+    except ErpApiFailedLogs.DoesNotExist:
+        return None
+
+    if ErpApiFailedLogs.objects.filter(parent=id, resync_by__isnull=False, resync_at__isnull=False).exists():
+        return None
+
+    return obj

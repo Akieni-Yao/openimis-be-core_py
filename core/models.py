@@ -1146,11 +1146,64 @@ class CamuNotification(models.Model):
     title = models.CharField(max_length=255, db_column='Title', null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, db_column='UserId', related_name='camu_notifications')
     module = models.CharField(max_length=50, db_column='Module', null=True, blank=True)
-    message = models.TextField(db_column='Message')
+    message = models.JSONField(db_column='Message', null=True)
     is_read = models.BooleanField(default=False, db_column='IsRead')
     created_at = models.DateTimeField(auto_now_add=True, db_column='Created At')
     redirect_url = models.CharField(max_length=255, db_column='RedirectURL', null=True, blank=True)
+    portal_redirect_url = models.CharField(max_length=255, db_column='PortalRedirectURL', null=True, blank=True)
 
     class Meta:
         managed = True
         db_table = "tblCamuNotification"
+
+    def mark_as_read(self):
+        self.is_read = True
+        self.save()
+
+
+class ErpApiFailedLogs(models.Model):
+    from medical.models import Service, Item
+    from payment.models import Payment, PaymentPenaltyAndSanction
+    from location.models import HealthFacility
+    from contract.models import Contract
+    from policyholder.models import PolicyHolder
+    from claim.models import Claim
+    id = models.AutoField(db_column='ID', primary_key=True)
+    module = models.CharField(max_length=50, db_column='Module', null=True)
+    policy_holder = models.ForeignKey(PolicyHolder, db_column="PolicyHolder",
+                                      on_delete=models.deletion.DO_NOTHING, related_name="policyholder_erp_logs", null=True)
+    claim = models.ForeignKey(Claim, on_delete=models.DO_NOTHING,
+                              db_column='Claim', related_name='claim_erp_logs', null=True)
+    contract = models.ForeignKey(Contract, on_delete=models.deletion.DO_NOTHING, db_column="Contract",
+                                 related_name="contract_erp_logs", null=True)
+    health_facility = models.ForeignKey(HealthFacility, on_delete=models.DO_NOTHING, related_name="hf_erp_logs",
+                                        db_column='HealthFacility', null=True)
+    payment_penalty = models.ForeignKey(PaymentPenaltyAndSanction, on_delete=models.DO_NOTHING,
+                                        related_name="penalty_erp_logs",
+                                        db_column="Penalty", null=True)
+    payment = models.ForeignKey(Payment, on_delete=models.DO_NOTHING, db_column='Payment',
+                                related_name="payment_erp_logs", null=True)
+    service = models.ForeignKey(Service, on_delete=models.DO_NOTHING, db_column='Service',
+                                related_name="service_erp_logs", null=True)
+    item = models.ForeignKey(Item, on_delete=models.DO_NOTHING, db_column='Item', related_name="item_erp_logs",
+                             null=True)
+    parent = models.ForeignKey('self', on_delete=models.deletion.DO_NOTHING, db_column="Parent",related_name='parent_erp_logs', null=True)
+    action = models.CharField(max_length=50, db_column='Action', null=True)
+    response_status_code = models.IntegerField(
+        db_column='ResponseCode', null=True)
+    response_json = JSONField(
+        db_column='ResponseJson', null=True)
+    request_url = models.CharField(max_length=500, db_column='RequestURL', null=True)
+    message = models.TextField(db_column='Message', null=True)
+    request_data = JSONField(
+        db_column='ProvidedData', null=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_column='CreatedAt', null=True)
+    created_by = models.ForeignKey(User, on_delete=models.DO_NOTHING, db_column='CreatedBy', null=True)
+    resync_status = models.IntegerField(db_column='ResyncStatus', null=True)
+    resync_at = models.DateTimeField(db_column='ResyncAt', null=True)
+    resync_by = models.ForeignKey(User, on_delete=models.DO_NOTHING, db_column='ResyncBy',related_name='erp_resync_by', null=True)
+
+
+    class Meta:
+        managed = True
+        db_table = "tblErpFailedLogs"
