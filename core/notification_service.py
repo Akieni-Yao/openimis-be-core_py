@@ -1,10 +1,12 @@
 import base64
 import logging
 
+from claim.models import Claim
 from core.constants import *
 from core.models import CamuNotification
 from core.notification_message import *
 from core.services.userServices import find_approvers
+from payment.models import Payment
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +205,18 @@ def payment_created(payment_obj):
         approvers = find_approvers()
         if not approvers:
             raise ValueError("No approvers found.")
-        message = contract_payment_status_messages.get('STATUS_CREATED', None)
+
+        # Retrieve the message template and format the message
+        message_template = contract_payment_status_messages.get('STATUS_CREATED', None)
+        if not message_template:
+            raise ValueError("Message template not found for PA_CREATED.")
+
+        # Format the message with the auth_code
+        message = {
+            'en': message_template['en'].format(auth_code=payment_obj.code),
+            'fr': message_template['fr'].format(auth_code=payment_obj.code)
+        }
+
         redirect_url = f"/payment/overview/{payment_obj.id}"
         portal_redirect_url = f"/paymentform/:id={payment_obj.id}"
         NotificationService.notify_users(approvers, "Payment", message, redirect_url, portal_redirect_url)
@@ -218,7 +231,31 @@ def payment_updated(payment_obj):
         approvers = find_approvers()
         if not approvers:
             raise ValueError("No approvers found.")
-        message = contract_payment_status_messages.get('STATUS_CREATED', None)
+        payment_status = payment_obj.status
+        if payment_status == Payment.STATUS_CREATED:
+            msg = "STATUS_CREATED"
+        elif payment_status == Payment.STATUS_PENDING:
+            msg = "STATUS_PENDING"
+        elif payment_status == Payment.STATUS_PROCESSING:
+            msg = "STATUS_PROCESSING"
+        elif payment_status == Payment.STATUS_OVERDUE:
+            msg = "STATUS_OVERDUE"
+        elif payment_status == Payment.STATUS_APPROVED:
+            msg = "STATUS_APPROVED"
+        else:
+            msg = "STATUS_REJECTED"
+
+        # Retrieve the message template and format the message
+        message_template = contract_payment_status_messages.get(msg, None)
+        if not message_template:
+            raise ValueError("Message template not found for PA_CREATED.")
+
+        # Format the message with the auth_code
+        message = {
+            'en': message_template['en'].format(auth_code=payment_obj.code),
+            'fr': message_template['fr'].format(auth_code=payment_obj.code)
+        }
+
         redirect_url = f"/payment/overview/{payment_obj.id}"
         portal_redirect_url = f"/paymentform/:id={payment_obj.id}"
         NotificationService.notify_users(approvers, "Payment", message, redirect_url, portal_redirect_url)
@@ -233,7 +270,18 @@ def fosa_created(fosa_obj):
         approvers = find_approvers()
         if not approvers:
             raise ValueError("No approvers found.")
-        message = fosa_status_messages.get('FOSA_STATUS_CREATED', None)
+
+        # Retrieve the message template and format the message
+        message_template = fosa_status_messages.get('FOSA_STATUS_CREATED', None)
+        if not message_template:
+            raise ValueError("Message template not found for PA_CREATED.")
+
+        # Format the message with the auth_code
+        message = {
+            'en': message_template['en'].format(auth_code=fosa_obj.code),
+            'fr': message_template['fr'].format(auth_code=fosa_obj.code)
+        }
+
         redirect_url = f"/location/healthFacility/{fosa_obj.id}"
         NotificationService.notify_users(approvers, "Location", message, redirect_url, None)
     except Exception as e:
@@ -247,7 +295,17 @@ def claim_created(claim_obj):
         approvers = find_approvers()
         if not approvers:
             raise ValueError("No approvers found.")
-        message = claim_status_messages.get('STATUS_CREATED', None)
+
+        # Retrieve the message template and format the message
+        message_template = claim_status_messages.get('STATUS_CREATED', None)
+        if not message_template:
+            raise ValueError("Message template not found for PA_CREATED.")
+
+        # Format the message with the auth_code
+        message = {
+            'en': message_template['en'].format(auth_code=claim_obj.code),
+            'fr': message_template['fr'].format(auth_code=claim_obj.code)
+        }
         redirect_url = f"/claim/healthFacilities/claim/{claim_obj.id}"
         NotificationService.notify_users(approvers, "Claim", message, redirect_url, None)
     except Exception as e:
@@ -262,21 +320,31 @@ def claim_updated(claim_obj):
         if not approvers:
             raise ValueError("No approvers found.")
         claim_status = claim_obj.status
-        if claim_status == 1:
+        if claim_status == Claim.STATUS_REJECTED:
             msg = "STATUS_REJECTED"
-        elif claim_status == 2:
+        elif claim_status == Claim.STATUS_ENTERED:
             msg = "STATUS_ENTERED"
-        elif claim_status == 4:
+        elif claim_status == Claim.STATUS_CHECKED:
             msg = "STATUS_CHECKED"
-        elif claim_status == 8:
+        elif claim_status == Claim.STATUS_PROCESSED:
             msg = "STATUS_PROCESSED"
-        elif claim_status == 16:
+        elif claim_status == Claim.STATUS_VALUATED:
             msg = "STATUS_VALUATED"
-        elif claim_status == 32:
+        elif claim_status == Claim.STATUS_REWORK:
             msg = "STATUS_REWORK"
-        elif claim_status == 64:
+        elif claim_status == Claim.STATUS_PAID:
             msg = "STATUS_PAID"
-        message = claim_status_messages.get(msg, None)
+
+        # Retrieve the message template and format the message
+        message_template = claim_status_messages.get(msg, None)
+        if not message_template:
+            raise ValueError("Message template not found for PA_CREATED.")
+
+        # Format the message with the auth_code
+        message = {
+            'en': message_template['en'].format(auth_code=claim_obj.code),
+            'fr': message_template['fr'].format(auth_code=claim_obj.code)
+        }
         redirect_url = f"/claim/healthFacilities/claim/{claim_obj.id}"
         NotificationService.notify_users(approvers, "Claim", message, redirect_url, None)
     except Exception as e:
