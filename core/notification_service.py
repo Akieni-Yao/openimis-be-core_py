@@ -270,7 +270,18 @@ def fosa_created(fosa_obj):
         approvers = find_approvers()
         if not approvers:
             raise ValueError("No approvers found.")
-        message = fosa_status_messages.get('FOSA_STATUS_CREATED', None)
+
+        # Retrieve the message template and format the message
+        message_template = fosa_status_messages.get('FOSA_STATUS_CREATED', None)
+        if not message_template:
+            raise ValueError("Message template not found for PA_CREATED.")
+
+        # Format the message with the auth_code
+        message = {
+            'en': message_template['en'].format(auth_code=fosa_obj.code),
+            'fr': message_template['fr'].format(auth_code=fosa_obj.code)
+        }
+
         redirect_url = f"/location/healthFacility/{fosa_obj.id}"
         NotificationService.notify_users(approvers, "Location", message, redirect_url, None)
     except Exception as e:
@@ -284,7 +295,17 @@ def claim_created(claim_obj):
         approvers = find_approvers()
         if not approvers:
             raise ValueError("No approvers found.")
-        message = claim_status_messages.get('STATUS_CREATED', None)
+
+        # Retrieve the message template and format the message
+        message_template = claim_status_messages.get('STATUS_CREATED', None)
+        if not message_template:
+            raise ValueError("Message template not found for PA_CREATED.")
+
+        # Format the message with the auth_code
+        message = {
+            'en': message_template['en'].format(auth_code=claim_obj.code),
+            'fr': message_template['fr'].format(auth_code=claim_obj.code)
+        }
         redirect_url = f"/claim/healthFacilities/claim/{claim_obj.id}"
         NotificationService.notify_users(approvers, "Claim", message, redirect_url, None)
     except Exception as e:
@@ -313,7 +334,17 @@ def claim_updated(claim_obj):
             msg = "STATUS_REWORK"
         elif claim_status == Claim.STATUS_PAID:
             msg = "STATUS_PAID"
-        message = claim_status_messages.get(msg, None)
+
+        # Retrieve the message template and format the message
+        message_template = claim_status_messages.get(msg, None)
+        if not message_template:
+            raise ValueError("Message template not found for PA_CREATED.")
+
+        # Format the message with the auth_code
+        message = {
+            'en': message_template['en'].format(auth_code=claim_obj.code),
+            'fr': message_template['fr'].format(auth_code=claim_obj.code)
+        }
         redirect_url = f"/claim/healthFacilities/claim/{claim_obj.id}"
         NotificationService.notify_users(approvers, "Claim", message, redirect_url, None)
     except Exception as e:
