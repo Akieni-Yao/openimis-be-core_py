@@ -2,6 +2,7 @@ import base64
 import logging
 
 from claim.models import Claim
+from contract.models import Contract
 from core.constants import *
 from core.models import CamuNotification
 from core.notification_message import *
@@ -149,6 +150,57 @@ def contract_created(contract_object):
         # Log the exception with traceback
         logging.error(f"Error in contract_created: {e}", exc_info=True)
 
+
+def contract_updated(contract_object):
+    try:
+        # Validate the contract_object
+        if not contract_object or not hasattr(contract_object, 'id') or not hasattr(contract_object, 'code'):
+            raise ValueError("Invalid contract object or missing ID/code.")
+
+        # Find approvers
+        approvers = find_approvers()
+        if not approvers:
+            raise ValueError("No approvers found.")
+
+        contract_status = contract_object.status
+        if contract_status == Contract.STATE_NEGOTIABLE:
+            msg = "STATE_NEGOTIABLE"
+        elif contract_status == Contract.STATE_EXECUTABLE:
+            msg = "STATE_EXECUTABLE"
+        elif contract_status == Contract.STATE_COUNTER:
+            msg = "STATE_COUNTER"
+        elif contract_status == Contract.STATE_TERMINATED:
+            msg = "STATE_TERMINATED"
+        elif contract_status == Contract.STATE_DISPUTED:
+            msg = "STATE_DISPUTED"
+        elif contract_status == Contract.STATE_EXECUTED:
+            msg = "STATE_EXECUTED"
+
+        # Retrieve the message template and format the message
+        message_template = contract_status_messages.get(msg, None)
+        if not message_template:
+            raise ValueError("Message template not found for STATE_DRAFT.")
+
+        # Format the message with the contract_code
+        message = {
+            'en': message_template['en'].format(contract_code=contract_object.code),
+            'fr': message_template['fr'].format(contract_code=contract_object.code)
+        }
+
+        # Construct the redirect URL
+        contract_id = contract_object.id if contract_object.id else ''
+        redirect_url = f"/contracts/contract/{contract_id}"
+        portal_redirect_url = f"/contract/:id={contract_id}"
+
+        # Notify users
+        NotificationService.notify_users(approvers, "Contract", message, redirect_url, portal_redirect_url)
+
+        # Log successful notification
+        logging.info(f"Notification sent successfully for Contract Code {contract_object.code}.")
+
+    except Exception as e:
+        # Log the exception with traceback
+        logging.error(f"Error in contract_created: {e}", exc_info=True)
 
 def pa_req_created(pa_req_object):
     try:

@@ -71,6 +71,18 @@ contract_status_messages = {
     'STATE_COUNTER': {
         'en': 'Contract Rejected {contract_code}',
         'fr': 'Contract Status Updated: Counter for code {contract_code}'
+    },
+    'STATE_TERMINATED': {
+        'en': 'Contract Terminated {contract_code}',
+        'fr': 'Contract Status Updated: Terminate for code {contract_code}'
+    },
+    'STATE_DISPUTED': {
+        'en': 'Contract Disputed {contract_code}',
+        'fr': 'Contract Status Updated: Dispute for code {contract_code}'
+    },
+    'STATE_EXECUTED': {
+        'en': 'Contract Executed {contract_code}',
+        'fr': 'Contract Status Updated: Executed for code {contract_code}'
     }
 }
 
