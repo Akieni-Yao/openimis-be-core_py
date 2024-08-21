@@ -1,13 +1,13 @@
 import base64
 import logging
 
-from claim.models import Claim
 from contract.models import Contract
+from claim.models import Claim, PreAuthorization
 from core.constants import *
 from core.models import CamuNotification
 from core.notification_message import *
 from core.services.userServices import find_approvers
-from payment.models import Payment
+from payment.models import Payment, PaymentPenaltyAndSanction
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +71,150 @@ def ph_created(policy_holder):
         logging.error(f"Error in policy_holder_created: {e}", exc_info=True)
 
 
+def ph_insuree_added(ph_insuree):
+    policy_holder = ph_insuree.policy_holder
+    insuree = ph_insuree.insuree
+    try:
+        # Validate the policy_holder object and ID
+        if not policy_holder or not hasattr(policy_holder, 'id') or not policy_holder.id:
+            raise ValueError("Invalid Policy Holder object or missing ID.")
+        # Validate the insuree object and ID
+        if not insuree or not hasattr(insuree, 'id') or not insuree.id:
+            raise ValueError("Invalid Insuree object or missing ID.")
+
+        # Find approvers
+        approvers = find_approvers()
+        if not approvers:
+            raise ValueError("No approvers found.")
+
+        # Retrieve the message template and format the messages
+        message_template = insuree_status_messages.get('PH_INS_CREATED', None)
+        if not message_template:
+            raise ValueError("Message template not found for PH_STATUS_CREATED.")
+
+        message_en = message_template['en'].format(chf_id=insuree.chf_id, policy_holder_code=policy_holder.code)
+        message_fr = message_template['fr'].format(chf_id=insuree.chf_id, policy_holder_code=policy_holder.code)
+        message = {
+            'en': message_en,
+            'fr': message_fr
+        }
+
+        # Construct the redirect URL
+        redirect_url = f"/insuree/insurees/insuree/{insuree.id}"
+
+        # Notify the users
+        NotificationService.notify_users(approvers, "Policy Holder", message, redirect_url, None)
+        logging.info(f"Notification sent successfully for Policy Holder ID {policy_holder.id}.")
+        logging.info(f"Notification sent successfully for Insuree ID {insuree.id}.")
+
+    except Exception as e:
+        logging.error(f"Error in policy_holder_created: {e}", exc_info=True)
+
+
+def insuree_added(insuree):
+    try:
+        # Validate the insuree object and ID
+        if not insuree or not hasattr(insuree, 'id') or not insuree.id:
+            raise ValueError("Invalid Insuree object or missing ID.")
+
+        # Find approvers
+        approvers = find_approvers()
+        if not approvers:
+            raise ValueError("No approvers found.")
+
+        # Retrieve the message template and format the messages
+        message_template = insuree_status_messages.get('INS_CREATED', None)
+        if not message_template:
+            raise ValueError("Message template not found for INS_CREATED.")
+
+        message_en = message_template['en'].format(chf_id=insuree.chf_id, )
+        message_fr = message_template['fr'].format(chf_id=insuree.chf_id, )
+        message = {
+            'en': message_en,
+            'fr': message_fr
+        }
+
+        # Construct the redirect URL
+        redirect_url = f"/insuree/insurees/insuree/{insuree.id}"
+
+        # Notify the users
+        NotificationService.notify_users(approvers, "Insuree", message, redirect_url, None)
+        logging.info(f"Notification sent successfully for Insuree ID {insuree.id}.")
+
+    except Exception as e:
+        logging.error(f"Error in policy_holder_created: {e}", exc_info=True)
+
+
+# def insuree_updated(insuree):
+#     try:
+#         # Validate the insuree object and ID
+#         if not insuree or not hasattr(insuree, 'id') or not insuree.id:
+#             raise ValueError("Invalid Insuree object or missing ID.")
+#
+#         # Find approvers
+#         approvers = find_approvers()
+#         if not approvers:
+#             raise ValueError("No approvers found.")
+#
+#         status = insuree.status
+#
+#         # Retrieve the message template and format the messages
+#         message_template = insuree_status_messages.get('INS_CREATED', None)
+#         if not message_template:
+#             raise ValueError("Message template not found for INS_CREATED.")
+#
+#         message_en = message_template['en'].format(chf_id=insuree.chf_id, )
+#         message_fr = message_template['fr'].format(chf_id=insuree.chf_id, )
+#         message = {
+#             'en': message_en,
+#             'fr': message_fr
+#         }
+#
+#         # Construct the redirect URL
+#         redirect_url = f"/insuree/insurees/insuree/{insuree.id}"
+#
+#         # Notify the users
+#         NotificationService.notify_users(approvers, "Insuree", message, redirect_url, None)
+#         logging.info(f"Notification sent successfully for Insuree ID {insuree.id}.")
+#
+#     except Exception as e:
+#         logging.error(f"Error in policy_holder_created: {e}", exc_info=True)
+#
+#
+# def ph_updated(policy_holder):
+#     try:
+#         # Validate the policy_holder object and ID
+#         if not policy_holder or not hasattr(policy_holder, 'id') or not policy_holder.id:
+#             raise ValueError("Invalid Policy Holder object or missing ID.")
+
+        # Find approvers
+        approvers = find_approvers()
+        if not approvers:
+            raise ValueError("No approvers found.")
+
+        # Retrieve the message template and format the messages
+        message_template = policy_holder_status_messages.get('PH_STATUS_CREATED', None)
+        if not message_template:
+            raise ValueError("Message template not found for PH_STATUS_CREATED.")
+
+        message_en = message_template['en'].format(policy_holder_code=policy_holder.code)
+        message_fr = message_template['fr'].format(policy_holder_code=policy_holder.code)
+        message = {
+            'en': message_en,
+            'fr': message_fr
+        }
+
+        # Construct the redirect URL
+        redirect_url = f"/policyHolders/policyHolder/{policy_holder.id}"
+
+        # Notify the users
+        NotificationService.notify_users(approvers, "Policy Holder", message, redirect_url, None)
+        logging.info(f"Notification sent successfully for Policy Holder ID {policy_holder.id}.")
+
+    except Exception as e:
+        logging.error(f"Error in policy_holder_created: {e}", exc_info=True)
+
+
 def penalty_created(penalty_object):
     try:
         # Validate the penalty_object
@@ -84,6 +228,70 @@ def penalty_created(penalty_object):
 
         # Retrieve the message template and format the messages
         message_template = penalty_status_messages.get('PENALTY_NOT_PAID', None)
+        if not message_template:
+            raise ValueError("Message template not found for PENALTY_NOT_PAID.")
+
+        message_en = message_template['en'].format(penalty_code=penalty_object.code)
+        message_fr = message_template['fr'].format(penalty_code=penalty_object.code)
+        message = {
+            'en': message_en,
+            'fr': message_fr
+        }
+
+        # Encode penalty ID and construct redirect URL
+        id_string = f"PaymentPenaltyAndSanctionType:{penalty_object.id}"
+        encoded_str = base64_encode(id_string)
+        if not encoded_str:
+            raise ValueError("Failed to encode penalty ID.")
+
+        redirect_url = f"/payment/paymentpenalty/overview/{encoded_str}"
+
+        # Notify users
+        NotificationService.notify_users(approvers, "Penalty", message, redirect_url, None)
+
+        # Log successful notification
+        logging.info(f"Notification sent successfully for Penalty ID {penalty_object.id}.")
+
+    except Exception as e:
+        # Log the exception with traceback
+        logging.error(f"Error in penalty_created: {e}", exc_info=True)
+
+
+def penalty_updated(penalty_object):
+    try:
+        # Validate the penalty_object
+        if not penalty_object or not hasattr(penalty_object, 'id') or not penalty_object.id:
+            raise ValueError("Invalid penalty object or missing ID.")
+
+        # Find approvers
+        approvers = find_approvers()
+        if not approvers:
+            raise ValueError("No approvers found.")
+        status = penalty_object.status
+        msg = None
+        if status == PaymentPenaltyAndSanction.PENALTY_NOT_PAID:
+            msg = 'PENALTY_NOT_PAID'
+        if status == PaymentPenaltyAndSanction.PENALTY_OUTSTANDING:
+            msg = 'PENALTY_OUTSTANDING'
+        if status == PaymentPenaltyAndSanction.PENALTY_PAID:
+            msg = 'PENALTY_PAID'
+        if status == PaymentPenaltyAndSanction.PENALTY_CANCELED:
+            msg = 'PENALTY_CANCELED'
+        if status == PaymentPenaltyAndSanction.PENALTY_REDUCED:
+            msg = 'PENALTY_REDUCED'
+        if status == PaymentPenaltyAndSanction.PENALTY_PROCESSING:
+            msg = 'PENALTY_PROCESSING'
+        if status == PaymentPenaltyAndSanction.PENALTY_APPROVED:
+            msg = 'PENALTY_APPROVED'
+        if status == PaymentPenaltyAndSanction.PENALTY_REJECTED:
+            msg = 'PENALTY_REJECTED'
+        if status == PaymentPenaltyAndSanction.REDUCE_REJECTED:
+            msg = 'REDUCE_REJECTED'
+        if status == PaymentPenaltyAndSanction.REDUCE_APPROVED:
+            msg = 'REDUCE_APPROVED'
+
+        # Retrieve the message template and format the messages
+        message_template = penalty_status_messages.get(msg, None)
         if not message_template:
             raise ValueError("Message template not found for PENALTY_NOT_PAID.")
 
@@ -201,6 +409,7 @@ def contract_updated(contract_object):
     except Exception as e:
         # Log the exception with traceback
         logging.error(f"Error in contract_created: {e}", exc_info=True)
+
 
 def pa_req_created(pa_req_object):
     try:
@@ -405,6 +614,59 @@ def claim_updated(claim_obj):
         print(f"Error in claim_created: {e}")
 
 
+def pa_req_updated(pa_req_object):
+    try:
+        # Validate the pa_req_object
+        if not pa_req_object or not hasattr(pa_req_object, 'id') or not hasattr(pa_req_object, 'code'):
+            raise ValueError("Invalid Prior Authorization Request object or missing ID/code.")
+
+        # Find approvers
+        approvers = find_approvers()
+        if not approvers:
+            raise ValueError("No approvers found.")
+
+        status = pa_req_object.status
+        msg = None
+        if status == PreAuthorization.PA_REJECTED:
+            msg = 'PA_REJECTED'
+        elif status == PreAuthorization.PA_CREATED:
+            msg = 'PA_CREATED'
+        elif status == PreAuthorization.PA_WAITING_FOR_APPROVAL:
+            msg = 'PA_WAITING_FOR_APPROVAL'
+        elif status == PreAuthorization.PA_REWORK:
+            msg = 'PA_REWORK'
+        elif status == PreAuthorization.PA_APPROVED:
+            msg = 'PA_APPROVED'
+
+        message_template = claim_status_messages.get(msg, None)
+        if not message_template:
+            raise ValueError(f"Message template not found for {msg}.")
+
+        # Format the message with the auth_code
+        message = {
+            'en': message_template['en'].format(auth_code=pa_req_object.code),
+            'fr': message_template['fr'].format(auth_code=pa_req_object.code)
+        }
+        # Encode penalty ID and construct redirect URL
+        id_string = f"PreAuthorizationType:{pa_req_object.id}"
+        encoded_str = base64_encode(id_string)
+        if not encoded_str:
+            raise ValueError("Failed to encode Pre Authorization ID.")
+        # Construct the redirect URL
+        pa_req_id = pa_req_object.id if pa_req_object.id else ''
+        redirect_url = f"/claim/healthFacilities/preauthorizationForm/{pa_req_id}"
+        portal_redirect_url = f"/autharizationForm/:id={id_string}"
+        # Notify users
+        NotificationService.notify_users(approvers, "Claim", message, redirect_url, portal_redirect_url)
+
+        # Log successful notification
+        logging.info(f"Notification sent successfully for Prior Authorization Request Code {pa_req_object.code}.")
+
+    except Exception as e:
+        # Log the exception with traceback
+        logging.error(f"Error in pa_req_created: {e}", exc_info=True)
+
+
 def create_camu_notification(notification_type, object):
     if notification_type == POLICYHOLDER_CREATION_NT:
         ph_created(object)
@@ -420,5 +682,18 @@ def create_camu_notification(notification_type, object):
         claim_created(object)
     elif notification_type == PA_REQ_CREATION_NT:
         pa_req_created(object)
+    elif notification_type == POLICYHOLDER_UPDATE_NT:
+        ph_updated(object)
+    elif notification_type == CONTRACT_UPDATE_NT:
+        contract_updated(object)
+        pass
+    elif notification_type == PAYMENT_UPDATE_NT:
+        payment_updated(object)
+    elif notification_type == PENALTY_UPDATE_NT:
+        penalty_updated(object)
+    elif notification_type == CLAIM_UPDATE_NT:
+        claim_updated(object)
+    elif notification_type == PA_REQ_UPDATE_NT:
+        pa_req_updated(object)
     else:
         return None

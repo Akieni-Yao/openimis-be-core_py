@@ -32,9 +32,13 @@ fosa_status_messages = {
 
 # Insuree Status Messages
 insuree_status_messages = {
-    'PH_STATUS_CREATED': {
-        'en': 'Insuree Created {chf_id} for Policy Holder with code {policy_holder_code}',
+    'PH_INS_CREATED': {
+        'en': 'Insuree Created {chf_id} for Policy Holder {policy_holder_code}',
         'fr': 'Insuree Status Updated: Created for Policy Holder with code {policy_holder_code}'
+    },
+    'INS_CREATED': {
+        'en': 'Insuree Created {chf_id}',
+        'fr': 'Insuree Created {chf_id}'
     },
     'PH_STATUS_PENDING': {
         'en': 'Insuree Pending {chf_id} for Policy Holder with code {policy_holder_code}',
