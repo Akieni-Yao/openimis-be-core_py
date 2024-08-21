@@ -100,7 +100,7 @@ def ph_insuree_added(ph_insuree):
         }
 
         # Construct the redirect URL
-        redirect_url = f"/insuree/insurees/insuree/{insuree.id}"
+        redirect_url = f"/insuree/insurees/insuree/{insuree.uuid}"
 
         # Notify the users
         NotificationService.notify_users(approvers, "Policy Holder", message, redirect_url, None)
@@ -181,11 +181,11 @@ def insuree_added(insuree):
 #         logging.error(f"Error in policy_holder_created: {e}", exc_info=True)
 #
 #
-# def ph_updated(policy_holder):
-#     try:
-#         # Validate the policy_holder object and ID
-#         if not policy_holder or not hasattr(policy_holder, 'id') or not policy_holder.id:
-#             raise ValueError("Invalid Policy Holder object or missing ID.")
+def ph_updated(policy_holder):
+    try:
+        # Validate the policy_holder object and ID
+        if not policy_holder or not hasattr(policy_holder, 'id') or not policy_holder.id:
+            raise ValueError("Invalid Policy Holder object or missing ID.")
 
         # Find approvers
         approvers = find_approvers()
@@ -670,6 +670,8 @@ def pa_req_updated(pa_req_object):
 def create_camu_notification(notification_type, object):
     if notification_type == POLICYHOLDER_CREATION_NT:
         ph_created(object)
+    elif notification_type == INS_ADDED_NT:
+        ph_insuree_added(object)
     elif notification_type == CONTRACT_CREATION_NT:
         contract_created(object)
     elif notification_type == PAYMENT_CREATION_NT:
