@@ -688,7 +688,6 @@ def create_camu_notification(notification_type, object):
         ph_updated(object)
     elif notification_type == CONTRACT_UPDATE_NT:
         contract_updated(object)
-        pass
     elif notification_type == PAYMENT_UPDATE_NT:
         payment_updated(object)
     elif notification_type == PENALTY_UPDATE_NT:
