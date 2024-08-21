@@ -359,7 +359,8 @@ def claim_created(claim_obj):
             'fr': message_template['fr'].format(auth_code=claim_obj.code)
         }
         redirect_url = f"/claim/healthFacilities/claim/{claim_obj.id}"
-        NotificationService.notify_users(approvers, "Claim", message, redirect_url, None)
+        portal_redirect_url = f"/claimForm/:id={claim_obj.id}"
+        NotificationService.notify_users(approvers, "Claim", message, redirect_url, portal_redirect_url)
     except Exception as e:
         print(f"Error in claim_created: {e}")
 
@@ -398,7 +399,8 @@ def claim_updated(claim_obj):
             'fr': message_template['fr'].format(auth_code=claim_obj.code)
         }
         redirect_url = f"/claim/healthFacilities/claim/{claim_obj.id}"
-        NotificationService.notify_users(approvers, "Claim", message, redirect_url, None)
+        portal_redirect_url = f"/claimForm/:id={claim_obj.id}"
+        NotificationService.notify_users(approvers, "Claim", message, redirect_url, portal_redirect_url)
     except Exception as e:
         print(f"Error in claim_created: {e}")
 
