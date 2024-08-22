@@ -8,6 +8,7 @@ from core.models import CamuNotification
 from core.notification_message import *
 from core.services.userServices import find_approvers
 from payment.models import Payment, PaymentPenaltyAndSanction
+from policyholder.constants import *
 
 logger = logging.getLogger(__name__)
 
@@ -191,11 +192,21 @@ def ph_updated(policy_holder):
         approvers = find_approvers()
         if not approvers:
             raise ValueError("No approvers found.")
+        msg = None
+        status = policy_holder.status
+        if status == PH_STATUS_PENDING:
+            msg = 'PH_STATUS_PENDING'
+        if status == PH_STATUS_APPROVED:
+            msg = 'PH_STATUS_PENDING'
+        if status == PH_STATUS_REJECTED:
+            msg = 'PH_STATUS_PENDING'
+        if status == PH_STATUS_REWORK:
+            msg = 'PH_STATUS_PENDING'
 
         # Retrieve the message template and format the messages
-        message_template = policy_holder_status_messages.get('PH_STATUS_CREATED', None)
+        message_template = policy_holder_status_messages.get(msg, None)
         if not message_template:
-            raise ValueError("Message template not found for PH_STATUS_CREATED.")
+            raise ValueError(f"Message template not found for {msg}.")
 
         message_en = message_template['en'].format(policy_holder_code=policy_holder.code)
         message_fr = message_template['fr'].format(policy_holder_code=policy_holder.code)
@@ -206,7 +217,6 @@ def ph_updated(policy_holder):
 
         # Construct the redirect URL
         redirect_url = f"/policyHolders/policyHolder/{policy_holder.id}"
-
         # Notify the users
         NotificationService.notify_users(approvers, "Policy Holder", message, redirect_url, None)
         logging.info(f"Notification sent successfully for Policy Holder ID {policy_holder.id}.")
