@@ -1222,3 +1222,14 @@ class ErpOperations(HistoryModel):
     class Meta:
         managed = True
         db_table = "tblErpOperations"
+
+class Banks(HistoryModel):
+    name = models.CharField(max_length=255, db_column='Name', null=True)
+    alt_lang_name = models.CharField(max_length=255, db_column='AltLangName', null=True)
+    code = models.CharField(max_length=255, db_column='Code', null=True)
+    erp_id = models.IntegerField(db_column='ERPID', null=True)
+    journaux_id = models.IntegerField(db_column='JournauxID', null=True)
+
+    class Meta:
+        managed = True
+        db_table = "tblBanks"
