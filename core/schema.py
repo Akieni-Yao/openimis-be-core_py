@@ -456,8 +456,11 @@ class ERPFailedLogsType(DjangoObjectType):
         message = data["message"]
 
         if message == 'Missing required field.':
-            # Assuming `data["field_name"]` is a list, join its elements into a string
-            field_names = ','.join(data["field_name"])
+            # Check if data["field_name"] is a list
+            if isinstance(data["field_name"], list):
+                field_names = ','.join(data["field_name"])
+            else:
+                field_names = data["field_name"]
             self.message = field_names + ',' + message
         elif message == 'Invoice not found.':
             self.message = message
