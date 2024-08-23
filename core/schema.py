@@ -50,7 +50,7 @@ from .constants import APPROVER_ROLE
 from .gql_queries import *
 from .utils import flatten_dict, update_or_create_resync
 from .models import ModuleConfiguration, FieldControl, MutationLog, Language, RoleMutation, UserMutation, GenericConfig, \
-    AuditLogs, ErpApiFailedLogs, ErpOperations
+    AuditLogs, ErpApiFailedLogs, ErpOperations, Banks
 from .services.roleServices import check_role_unique_name
 from .services.userServices import check_user_unique_email
 from .validation.obligatoryFieldValidation import validate_payload_for_obligatory_fields
@@ -488,6 +488,16 @@ class ErpOperationsType(DjangoObjectType):
         connection_class = ExtendedConnection
 
 
+class BanksType(DjangoObjectType):
+    class Meta:
+        model = Banks
+        interfaces = (graphene.relay.Node,)
+        filter_fields = {
+            "id": ["exact"],
+        }
+        connection_class = ExtendedConnection
+
+
 class Query(graphene.ObjectType):
     module_configurations = graphene.List(
         ModuleConfigurationGQLType,
@@ -630,9 +640,21 @@ class Query(graphene.ObjectType):
         orderBy=graphene.List(of_type=graphene.String),
     )
 
+    banks = OrderedDjangoFilterConnectionField(
+        BanksType,
+        orderBy=graphene.List(of_type=graphene.String),
+    )
+
+    def resolve_banks(self, info, **kwargs):
+        id = kwargs.get('id', None)
+        query = Banks.objects.filter(is_deleted=False)
+        if id:
+            query = query.filter(id=id)
+        return gql_optimizer.query(query, info)
+
     def resolve_erp_operations(self, info, **kwargs):
         id = kwargs.get('id', None)
-        query = ErpOperations.objects.all()
+        query = ErpOperations.objects.filter(is_deleted=False)
         if id:
             query = query.filter(id=id)
         return gql_optimizer.query(query, info)
@@ -1850,6 +1872,93 @@ class MarkNotificationAsRead(graphene.Mutation):
             return MarkNotificationAsRead(success=False)
 
 
+class BanksInput(graphene.InputObjectType):
+    id = graphene.String()
+    name = graphene.String()
+    alt_lang_name = graphene.String()
+    code = graphene.String()
+    erp_id = graphene.Int()
+    journaux_id = graphene.Int()
+
+
+class CreateBanks(graphene.Mutation):
+    success = graphene.Boolean()
+    message = graphene.String()
+    banks = graphene.Field(BanksType)
+
+    class Arguments:
+        input = BanksInput(required=True)
+
+    def mutate(self, info, input):
+        user = info.context.user
+        try:
+            banks = Banks(
+                name=input.name,
+                alt_lang_name=input.alt_lang_name,
+                code=input.code,
+                erp_id=input.erp_id,
+                journaux_id=input.journaux_id
+            )
+            banks.save(username=user.username)
+            logger.info(f"Banks created by {user.username}: {banks}")
+            return CreateBanks(success=True, message="Created Successfully.", banks=banks)
+        except Exception as e:
+            logger.error(f"Error creating Banks: {e}")
+            raise GraphQLError("Failed to create Banks.")
+
+
+class UpdateBanks(graphene.Mutation):
+    success = graphene.Boolean()
+    message = graphene.String()
+    banks = graphene.Field(BanksType)
+
+    class Arguments:
+        input = BanksInput()
+
+    def mutate(self, info, input):
+        id = input.id
+        user = info.context.user
+        try:
+            banks = Banks.objects.get(pk=id)
+
+            for key, value in input.items():
+                if value is not None:
+                    setattr(banks, key, value)
+
+            banks.save(username=user.username)
+            logger.info(f"Banks updated by {user.username}: {banks}")
+            return UpdateBanks(success=True, message="Updated Successfully.", banks=banks)
+        except ObjectDoesNotExist:
+            logger.warning(f"Banks with ID {id} not found for update.")
+            raise GraphQLError(f"Banks with ID {id} does not exist.")
+        except Exception as e:
+            logger.error(f"Error updating Banks: {e}")
+            raise GraphQLError("Failed to update Banks.")
+
+
+class DeleteBanks(graphene.Mutation):
+    success = graphene.Boolean()
+
+    class Arguments:
+        input = BanksInput()
+
+    def mutate(self, info, input):
+        id = input.id
+        try:
+            user = info.context.user
+            banks = Banks.objects.get(pk=id)
+            banks.is_deleted = True
+            banks.save(username=user.username)
+            logger.info(f"Banks marked as deleted by {user.username}: {banks}")
+            return DeleteBanks(success=True)
+        except ObjectDoesNotExist:
+            logger.warning(f"Banks with ID {id} not found for deletion.")
+            raise GraphQLError(f"Banks with ID {id} does not exist.")
+        except Exception as e:
+            logger.error(f"Error deleting Banks: {e}")
+            raise GraphQLError("Failed to delete Banks.")
+
+
 class ErpOperationsInput(graphene.InputObjectType):
     id = graphene.String()
     name = graphene.String(required=True)
@@ -1860,6 +1969,8 @@ class ErpOperationsInput(graphene.InputObjectType):
 
 
 class CreateErpOperations(graphene.Mutation):
+    success = graphene.Boolean()
+    message = graphene.String()
     erp_operations = graphene.Field(ErpOperationsType)
 
     class Arguments:
@@ -1877,13 +1988,15 @@ class CreateErpOperations(graphene.Mutation):
             )
             erp_operations.save(username=user.username)
             logger.info(f"ErpOperations created by {user.username}: {erp_operations}")
-            return CreateErpOperations(erp_operations=erp_operations)
+            return CreateErpOperations(success=True, message="Created Successfully.", erp_operations=erp_operations)
         except Exception as e:
             logger.error(f"Error creating ErpOperations: {e}")
             raise GraphQLError("Failed to create ErpOperations.")
 
 
 class UpdateErpOperations(graphene.Mutation):
+    success = graphene.Boolean()
+    message = graphene.String()
     erp_operations = graphene.Field(ErpOperationsType)
 
     class Arguments:
@@ -1901,7 +2014,7 @@ class UpdateErpOperations(graphene.Mutation):
 
             erp_operations.save(username=user.username)
             logger.info(f"ErpOperations updated by {user.username}: {erp_operations}")
-            return UpdateErpOperations(erp_operations=erp_operations)
+            return UpdateErpOperations(success=True, message="Updated Successfully.", erp_operations=erp_operations)
         except ObjectDoesNotExist:
             logger.warning(f"ErpOperations with ID {id} not found for update.")
             raise GraphQLError(f"ErpOperations with ID {id} does not exist.")
@@ -1963,6 +2076,9 @@ class Mutation(graphene.ObjectType):
     create_erp_operations = CreateErpOperations.Field()
     update_erp_operations = UpdateErpOperations.Field()
     delete_erp_operations = DeleteErpOperations.Field()
+    create_banks = CreateBanks.Field()
+    update_banks = UpdateBanks.Field()
+    delete_banks = DeleteBanks.Field()
 
 
 def on_role_mutation(sender, **kwargs):

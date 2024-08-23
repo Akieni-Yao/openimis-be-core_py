@@ -1223,6 +1223,7 @@ class ErpOperations(HistoryModel):
         managed = True
         db_table = "tblErpOperations"
 
+
 class Banks(HistoryModel):
     name = models.CharField(max_length=255, db_column='Name', null=True)
     alt_lang_name = models.CharField(max_length=255, db_column='AltLangName', null=True)
