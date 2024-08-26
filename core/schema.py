@@ -489,7 +489,7 @@ class ErpOperationsType(DjangoObjectType):
             "id": ["exact"],
             "name":["exact", "istartswith", "icontains", "iexact"],
             "code": ["exact", "istartswith", "icontains", "iexact"],
-            "erp_id": ["exact"],
+            "erp_id": ["exact", "istartswith", "icontains", "iexact"],
             "access_id": ["exact", "istartswith", "icontains", "iexact"],
             "accounting_id": ["exact"],
         }
@@ -504,8 +504,8 @@ class BanksType(DjangoObjectType):
             "id": ["exact"],
             "name":["exact", "istartswith", "icontains", "iexact"],
             "code": ["exact", "istartswith", "icontains", "iexact"],
-            "erp_id": ["exact"],
-            "journaux_id": ["exact"],
+            "erp_id": ["exact", "istartswith", "icontains", "iexact"],
+            "journaux_id": ["exact", "istartswith", "icontains", "iexact"],
         }
         connection_class = ExtendedConnection
 
