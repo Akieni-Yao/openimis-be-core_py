@@ -487,6 +487,11 @@ class ErpOperationsType(DjangoObjectType):
         interfaces = (graphene.relay.Node,)
         filter_fields = {
             "id": ["exact"],
+            "name":["exact", "istartswith", "icontains", "iexact"],
+            "code": ["exact", "istartswith", "icontains", "iexact"],
+            "erp_id": ["exact"],
+            "access_id": ["exact", "istartswith", "icontains", "iexact"],
+            "accounting_id": ["exact"],
         }
         connection_class = ExtendedConnection
 
@@ -497,6 +502,10 @@ class BanksType(DjangoObjectType):
         interfaces = (graphene.relay.Node,)
         filter_fields = {
             "id": ["exact"],
+            "name":["exact", "istartswith", "icontains", "iexact"],
+            "code": ["exact", "istartswith", "icontains", "iexact"],
+            "erp_id": ["exact"],
+            "journaux_id": ["exact"],
         }
         connection_class = ExtendedConnection
 
@@ -1964,7 +1973,7 @@ class DeleteBanks(graphene.Mutation):
 
 class ErpOperationsInput(graphene.InputObjectType):
     id = graphene.String()
-    name = graphene.String(required=True)
+    name = graphene.String()
     alt_lang_name = graphene.String()
     erp_id = graphene.Int()
     access_id = graphene.String()
