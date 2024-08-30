@@ -354,7 +354,7 @@ def update_or_create_resync(id, user):
 
         response = requests.post(url, headers=headers, json=json_data, verify=False)
 
-        if response.status_code not in [200, 201]:
+        if response.status_code in [200, 201]:
             # Update the original entry with resync_status = 1
             erp_logs_to_resync.resync_status = 1
             erp_logs_to_resync.resync_at = datetime.now()
