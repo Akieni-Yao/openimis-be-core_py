@@ -515,6 +515,7 @@ class User(UUIDModel, PermissionsMixin):
     claim_admin = models.ForeignKey("claim.ClaimAdmin", on_delete=models.CASCADE, blank=True, null=True)
     station = models.ForeignKey(Station, models.DO_NOTHING, db_column='StationId', blank=True, null=True)
     is_portal_user = models.BooleanField(db_column='IsPortalUser', default=False)
+    is_fosa_user = models.BooleanField(db_column='IsFosaUser', default=False)
 
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = []
