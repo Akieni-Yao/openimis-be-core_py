@@ -1730,9 +1730,10 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
 
     class Arguments:
         is_portal = graphene.Boolean(required=False)
+        is_fosa_user = graphene.Boolean(required=False)
 
     @classmethod
-    def mutate(cls, root, info, is_portal=False, **kwargs):
+    def mutate(cls, root, info, is_portal=False, is_fosa_user=False, **kwargs):
         username = kwargs.get("username")
         if username:
             user_tuple = User.objects.get_or_create(username=username)
@@ -1743,8 +1744,15 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
                         raise JSONWebTokenError(_("User is not verified"))
                 elif user_data.is_portal_user and not is_portal:
                     raise JSONWebTokenError(_("Please enter valid credentials"))
+                elif user_data.is_fosa_user and not is_fosa_user:
+                    raise JSONWebTokenError(_("Please enter valid credentials"))
                 elif not user_data.is_portal_user and is_portal:
                     raise JSONWebTokenError(_("Please enter valid credentials"))
+                elif not user_data.is_fosa_user and is_fosa_user:
+                    raise JSONWebTokenError(_("Please enter valid credentials"))
+                elif user_data.is_fosa_user and is_fosa_user:
+                    if not user_data.i_user.is_verified:
+                        raise JSONWebTokenError(_("User is not verified"))
                 cls.update_profile_queue_for_approver(user_data)
             else:
                 logger.debug("Authentication with %s failed and could not be fetched from tblUsers", username)
