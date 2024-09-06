@@ -380,7 +380,7 @@ def contract_updated(contract_object):
         if not approvers:
             raise ValueError("No approvers found.")
 
-        contract_status = contract_object.status
+        contract_status = contract_object.state
         if contract_status == Contract.STATE_NEGOTIABLE:
             msg = "STATE_NEGOTIABLE"
         elif contract_status == Contract.STATE_EXECUTABLE:
