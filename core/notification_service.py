@@ -484,8 +484,8 @@ def payment_created(payment_obj):
 
         # Format the message with the auth_code
         message = {
-            'en': message_template['en'].format(auth_code=payment_obj.code),
-            'fr': message_template['fr'].format(auth_code=payment_obj.code)
+            'en': message_template['en'].format(payment_code=payment_obj.payment_code),
+            'fr': message_template['fr'].format(payment_code=payment_obj.payment_code)
         }
 
         redirect_url = f"/payment/overview/{payment_obj.id}"
