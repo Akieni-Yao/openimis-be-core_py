@@ -1219,6 +1219,7 @@ class ErpOperations(HistoryModel):
     erp_id = models.IntegerField(db_column='ERPID', null=True)
     access_id = models.CharField(max_length=255, db_column='AccessID', null=True)
     accounting_id = models.IntegerField(db_column='AccountingID', null=True)
+    is_default = models.BooleanField(db_column='IsDefault', default=False)
 
     class Meta:
         managed = True
@@ -1231,6 +1232,7 @@ class Banks(HistoryModel):
     code = models.CharField(max_length=255, db_column='Code', null=True)
     erp_id = models.IntegerField(db_column='ERPID', null=True)
     journaux_id = models.IntegerField(db_column='JournauxID', null=True)
+    is_default = models.BooleanField(db_column='IsDefault', default=False)
 
     class Meta:
         managed = True
