@@ -523,8 +523,8 @@ def payment_updated(payment_obj):
 
         # Format the message with the auth_code
         message = {
-            'en': message_template['en'].format(auth_code=payment_obj.code),
-            'fr': message_template['fr'].format(auth_code=payment_obj.code)
+            'en': message_template['en'].format(payment_code=payment_obj.payment_code),
+            'fr': message_template['fr'].format(payment_code=payment_obj.payment_code)
         }
 
         redirect_url = f"/payment/overview/{payment_obj.id}"
@@ -549,8 +549,8 @@ def fosa_created(fosa_obj):
 
         # Format the message with the auth_code
         message = {
-            'en': message_template['en'].format(auth_code=fosa_obj.code),
-            'fr': message_template['fr'].format(auth_code=fosa_obj.code)
+            'en': message_template['en'].format(fosa_code=fosa_obj.fosa_code),
+            'fr': message_template['fr'].format(fosa_code=fosa_obj.fosa_code)
         }
 
         redirect_url = f"/location/healthFacility/{fosa_obj.id}"
@@ -574,8 +574,8 @@ def claim_created(claim_obj):
 
         # Format the message with the auth_code
         message = {
-            'en': message_template['en'].format(auth_code=claim_obj.code),
-            'fr': message_template['fr'].format(auth_code=claim_obj.code)
+            'en': message_template['en'].format(claim_code=claim_obj.code),
+            'fr': message_template['fr'].format(claim_code=claim_obj.code)
         }
         redirect_url = f"/claim/healthFacilities/claim/{claim_obj.id}"
         portal_redirect_url = f"/claimForm/:id={claim_obj.id}"
@@ -614,8 +614,8 @@ def claim_updated(claim_obj):
 
         # Format the message with the auth_code
         message = {
-            'en': message_template['en'].format(auth_code=claim_obj.code),
-            'fr': message_template['fr'].format(auth_code=claim_obj.code)
+            'en': message_template['en'].format(claim_code=claim_obj.code),
+            'fr': message_template['fr'].format(claim_code=claim_obj.code)
         }
         redirect_url = f"/claim/healthFacilities/claim/{claim_obj.id}"
         portal_redirect_url = f"/claimForm/:id={claim_obj.id}"
@@ -648,7 +648,7 @@ def pa_req_updated(pa_req_object):
         elif status == PreAuthorization.PA_APPROVED:
             msg = 'PA_APPROVED'
 
-        message_template = claim_status_messages.get(msg, None)
+        message_template = pre_auth_req_status_messages.get(msg, None)
         if not message_template:
             raise ValueError(f"Message template not found for {msg}.")
 

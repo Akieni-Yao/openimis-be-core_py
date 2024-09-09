@@ -93,28 +93,28 @@ contract_status_messages = {
 # Contract Payment Status Messages
 contract_payment_status_messages = {
     'STATUS_CREATED': {
-        'en': 'Contract Payment Created {contract_code}',
-        'fr': 'Contract Payment Status Updated: Created for code {contract_code}'
+        'en': 'Contract Payment Created {payment_code}',
+        'fr': 'Contract Payment Status Updated: Created for code {payment_code}'
     },
     'STATUS_PENDING': {
-        'en': 'Contract Payment Pending {contract_code}',
-        'fr': 'Contract Payment Status Updated: Pending for code {contract_code}'
+        'en': 'Contract Payment Pending {payment_code}',
+        'fr': 'Contract Payment Status Updated: Pending for code {payment_code}'
     },
     'STATUS_PROCESSING': {
-        'en': 'Contract Payment Processing {contract_code}',
-        'fr': 'Contract Payment Status Updated: Processing for code {contract_code}'
+        'en': 'Contract Payment Processing {payment_code}',
+        'fr': 'Contract Payment Status Updated: Processing for code {payment_code}'
     },
     'STATUS_OVERDUE': {
-        'en': 'Contract Payment Overdue {contract_code}',
-        'fr': 'Contract Payment Status Updated: Overdue for code {contract_code}'
+        'en': 'Contract Payment Overdue {payment_code}',
+        'fr': 'Contract Payment Status Updated: Overdue for code {payment_code}'
     },
     'STATUS_APPROVED': {
         'en': 'Contract Payment Approved {contract_code}',
         'fr': 'Contract Payment Status Updated: Approved for code {contract_code}'
     },
     'STATUS_REJECTED': {
-        'en': 'Contract Payment Rejected {contract_code}',
-        'fr': 'Contract Payment Status Updated: Rejected for code {contract_code}'
+        'en': 'Contract Payment Rejected {payment_code}',
+        'fr': 'Contract Payment Status Updated: Rejected for code {payment_code}'
     }
 }
 
