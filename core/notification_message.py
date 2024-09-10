@@ -109,8 +109,8 @@ contract_payment_status_messages = {
         'fr': 'Contract Payment Status Updated: Overdue for code {payment_code}'
     },
     'STATUS_APPROVED': {
-        'en': 'Contract Payment Approved {contract_code}',
-        'fr': 'Contract Payment Status Updated: Approved for code {contract_code}'
+        'en': 'Contract Payment Approved {payment_code}',
+        'fr': 'Contract Payment Status Updated: Approved for code {payment_code}'
     },
     'STATUS_REJECTED': {
         'en': 'Contract Payment Rejected {payment_code}',
