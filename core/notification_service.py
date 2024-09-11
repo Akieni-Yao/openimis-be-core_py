@@ -6,7 +6,7 @@ from claim.models import Claim, PreAuthorization
 from core.constants import *
 from core.models import CamuNotification
 from core.notification_message import *
-from core.services.userServices import find_approvers
+from core.services.userServices import find_approvers, find_ph_approver
 from payment.models import Payment, PaymentPenaltyAndSanction
 from policyholder.constants import *
 
@@ -112,7 +112,7 @@ def ph_insuree_added(ph_insuree):
         logging.error(f"Error in policy_holder_created: {e}", exc_info=True)
 
 
-def insuree_added(insuree):
+def insuree_status_added(insuree):
     try:
         # Validate the insuree object and ID
         if not insuree or not hasattr(insuree, 'id') or not insuree.id:
@@ -122,11 +122,14 @@ def insuree_added(insuree):
         approvers = find_approvers()
         if not approvers:
             raise ValueError("No approvers found.")
+        ins_status = insuree.status
+        if not ins_status:
+            raise ValueError("Insuree status is missing.")
 
         # Retrieve the message template and format the messages
-        message_template = insuree_status_messages.get('INS_CREATED', None)
+        message_template = insuree_status_messages.get(ins_status, None)
         if not message_template:
-            raise ValueError("Message template not found for INS_CREATED.")
+            raise ValueError(f"Message template not found for {ins_status}.")
 
         message_en = message_template['en'].format(chf_id=insuree.chf_id, )
         message_fr = message_template['fr'].format(chf_id=insuree.chf_id, )
@@ -146,42 +149,6 @@ def insuree_added(insuree):
         logging.error(f"Error in policy_holder_created: {e}", exc_info=True)
 
 
-# def insuree_updated(insuree):
-#     try:
-#         # Validate the insuree object and ID
-#         if not insuree or not hasattr(insuree, 'id') or not insuree.id:
-#             raise ValueError("Invalid Insuree object or missing ID.")
-#
-#         # Find approvers
-#         approvers = find_approvers()
-#         if not approvers:
-#             raise ValueError("No approvers found.")
-#
-#         status = insuree.status
-#
-#         # Retrieve the message template and format the messages
-#         message_template = insuree_status_messages.get('INS_CREATED', None)
-#         if not message_template:
-#             raise ValueError("Message template not found for INS_CREATED.")
-#
-#         message_en = message_template['en'].format(chf_id=insuree.chf_id, )
-#         message_fr = message_template['fr'].format(chf_id=insuree.chf_id, )
-#         message = {
-#             'en': message_en,
-#             'fr': message_fr
-#         }
-#
-#         # Construct the redirect URL
-#         redirect_url = f"/insuree/insurees/insuree/{insuree.id}"
-#
-#         # Notify the users
-#         NotificationService.notify_users(approvers, "Insuree", message, redirect_url, None)
-#         logging.info(f"Notification sent successfully for Insuree ID {insuree.id}.")
-#
-#     except Exception as e:
-#         logging.error(f"Error in policy_holder_created: {e}", exc_info=True)
-#
-#
 def ph_updated(policy_holder):
     try:
         # Validate the policy_holder object and ID
@@ -338,9 +305,21 @@ def contract_created(contract_object):
             raise ValueError("Invalid contract object or missing ID/code.")
 
         # Find approvers
-        approvers = find_approvers()
+        approvers = list(find_approvers())
         if not approvers:
             raise ValueError("No approvers found.")
+
+        # Attempt to find policyholder approver
+        try:
+            ph_approver = find_ph_approver(contract_object.policy_holder)
+            all_approvers = list(set(approvers + [ph_approver]))  # Combine approvers if ph_approver exists
+        except Exception as e:
+            # Log if policyholder approver not found and continue with remaining approvers
+            logging.warning(f"PolicyHolder approver not found: {e}")
+            all_approvers = approvers  # Proceed with remaining approvers
+
+        if not all_approvers:
+            raise ValueError("No approvers found, including PolicyHolder approver.")
 
         # Retrieve the message template and format the message
         message_template = contract_status_messages.get('STATE_DRAFT', None)
@@ -359,7 +338,7 @@ def contract_created(contract_object):
         portal_redirect_url = f"/contract/:id={contract_id}"
 
         # Notify users
-        NotificationService.notify_users(approvers, "Contract", message, redirect_url, portal_redirect_url)
+        NotificationService.notify_users(all_approvers, "Contract", message, redirect_url, portal_redirect_url)
 
         # Log successful notification
         logging.info(f"Notification sent successfully for Contract Code {contract_object.code}.")
@@ -682,6 +661,8 @@ def create_camu_notification(notification_type, object):
         ph_created(object)
     elif notification_type == INS_ADDED_NT:
         ph_insuree_added(object)
+    elif notification_type == INS_UPDATED_NT:
+        insuree_status_added(object)
     elif notification_type == CONTRACT_CREATION_NT:
         contract_created(object)
     elif notification_type == PAYMENT_CREATION_NT:

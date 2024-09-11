@@ -36,27 +36,60 @@ insuree_status_messages = {
         'en': 'Insuree Created {chf_id} for Policy Holder {policy_holder_code}',
         'fr': 'Insuree Status Updated: Created for Policy Holder with code {policy_holder_code}'
     },
-    'INS_CREATED': {
+    'PRE_REGISTERED': {
         'en': 'Insuree Created {chf_id}',
         'fr': 'Insuree Created {chf_id}'
     },
-    'PH_STATUS_PENDING': {
-        'en': 'Insuree Pending {chf_id} for Policy Holder with code {policy_holder_code}',
-        'fr': 'Insuree Status Updated: Pending for Policy Holder with code {policy_holder_code}'
+    'APPROVED': {
+        'en': 'Insuree Status Changed: Approved {chf_id}',
+        'fr': 'Statut de l\'assuré changé : Approuvé {chf_id}'
     },
-    'PH_STATUS_APPROVED': {
-        'en': 'Insuree Approved {chf_id} for Policy Holder with code {policy_holder_code}',
-        'fr': 'Insuree Status Updated: Approved for Policy Holder with code {policy_holder_code}'
+    'WAITING_FOR_DOCUMENT_AND_BIOMETRIC': {
+        'en': 'Insuree Status Changed: Waiting for Document and Biometric {chf_id}',
+        'fr': 'Statut de l\'assuré changé : En attente de Document et Biométrie {chf_id}'
     },
-    'PH_STATUS_REJECTED': {
-        'en': 'Insuree Rejected {chf_id} for Policy Holder with code {policy_holder_code}',
-        'fr': 'Insuree Status Updated: Rejected for Policy Holder with code {policy_holder_code}'
+    'WAITING_FOR_DOCUMENT': {
+        'en': 'Insuree Status Changed: Waiting for Document {chf_id}',
+        'fr': 'Statut de l\'assuré changé : En attente de Document {chf_id}'
     },
-    'PH_STATUS_REWORK': {
-        'en': 'Insuree Rework {chf_id} for Policy Holder with code {policy_holder_code}',
-        'fr': 'Insuree Status Updated: Rework for Policy Holder with code {policy_holder_code}'
+    'WAITING_FOR_BIOMETRIC': {
+        'en': 'Insuree Status Changed: Waiting for Biometric {chf_id}',
+        'fr': 'Statut de l\'assuré changé : En attente de Biométrie {chf_id}'
+    },
+    'WAITING_FOR_APPROVAL': {
+        'en': 'Insuree Status Changed: Waiting for Approval {chf_id}',
+        'fr': 'Statut de l\'assuré changé : En attente d\'Approbation {chf_id}'
+    },
+    'WAITING_FOR_QUEUE': {
+        'en': 'Insuree Status Changed: Waiting in Queue {chf_id}',
+        'fr': 'Statut de l\'assuré changé : En attente dans la file d\'attente {chf_id}'
+    },
+    'ACTIVE': {
+        'en': 'Insuree Status Changed: Active {chf_id}',
+        'fr': 'Statut de l\'assuré changé : Actif {chf_id}'
+    },
+    'REJECTED': {
+        'en': 'Insuree Status Changed: Rejected {chf_id}',
+        'fr': 'Statut de l\'assuré changé : Rejeté {chf_id}'
+    },
+    'REWORK': {
+        'en': 'Insuree Status Changed: Rework Required {chf_id}',
+        'fr': 'Statut de l\'assuré changé : Reprise Nécessaire {chf_id}'
+    },
+    'ON_HOLD': {
+        'en': 'Insuree Status Changed: On Hold {chf_id}',
+        'fr': 'Statut de l\'assuré changé : En Attente {chf_id}'
+    },
+    'END_OF_LIFE': {
+        'en': 'Insuree Status Changed: End of Life {chf_id}',
+        'fr': 'Statut de l\'assuré changé : Fin de Vie {chf_id}'
+    },
+    'NOT_ACTIVE': {
+        'en': 'Insuree Status Changed: Not Active {chf_id}',
+        'fr': 'Statut de l\'assuré changé : Inactif {chf_id}'
     }
 }
+
 
 # Contract Status Messages
 contract_status_messages = {

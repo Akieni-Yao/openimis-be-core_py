@@ -9,6 +9,7 @@ FOSA_CREATION_NT = 'fosa_created'
 CLAIM_CREATION_NT = 'claim_created'
 PA_REQ_CREATION_NT = 'pa_req_created'
 INS_ADDED_NT = 'ins_added'
+INS_UPDATED_NT = 'ins_updated'
 
 POLICYHOLDER_UPDATE_NT = 'policy_holder_updated'
 CONTRACT_UPDATE_NT = 'contract_updated'
