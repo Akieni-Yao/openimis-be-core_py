@@ -13,6 +13,7 @@ from datetime import datetime as py_datetime
 from functools import reduce
 from django.utils.translation import gettext_lazy
 from graphene.types.generic import GenericScalar
+from graphql import GraphQLError
 from graphql_jwt.exceptions import JSONWebTokenError
 from graphql_jwt.mutations import JSONWebTokenMutation, mixins
 import graphene_django_optimizer as gql_optimizer
@@ -49,7 +50,7 @@ from .constants import APPROVER_ROLE
 from .gql_queries import *
 from .utils import flatten_dict, update_or_create_resync
 from .models import ModuleConfiguration, FieldControl, MutationLog, Language, RoleMutation, UserMutation, GenericConfig, \
-    AuditLogs, ErpApiFailedLogs
+    AuditLogs, ErpApiFailedLogs, ErpOperations, Banks
 from .services.roleServices import check_role_unique_name
 from .services.userServices import check_user_unique_email
 from .validation.obligatoryFieldValidation import validate_payload_for_obligatory_fields
@@ -455,8 +456,11 @@ class ERPFailedLogsType(DjangoObjectType):
         message = data["message"]
 
         if message == 'Missing required field.':
-            # Assuming `data["field_name"]` is a list, join its elements into a string
-            field_names = ','.join(data["field_name"])
+            # Check if data["field_name"] is a list
+            if isinstance(data["field_name"], list):
+                field_names = ','.join(data["field_name"])
+            else:
+                field_names = data["field_name"]
             self.message = field_names + ',' + message
         elif message == 'Invoice not found.':
             self.message = message
@@ -473,6 +477,35 @@ class CamuNotificationType(DjangoObjectType):
         filter_fields = {
             "id": ["exact"],
             **prefix_filterset("user__", UserGQLType._meta.filter_fields),
+        }
+        connection_class = ExtendedConnection
+
+
+class ErpOperationsType(DjangoObjectType):
+    class Meta:
+        model = ErpOperations
+        interfaces = (graphene.relay.Node,)
+        filter_fields = {
+            "id": ["exact"],
+            "name":["exact", "istartswith", "icontains", "iexact"],
+            "code": ["exact", "istartswith", "icontains", "iexact"],
+            "erp_id": ["exact", "istartswith", "icontains", "iexact"],
+            "access_id": ["exact", "istartswith", "icontains", "iexact"],
+            "accounting_id": ["exact"],
+        }
+        connection_class = ExtendedConnection
+
+
+class BanksType(DjangoObjectType):
+    class Meta:
+        model = Banks
+        interfaces = (graphene.relay.Node,)
+        filter_fields = {
+            "id": ["exact"],
+            "name":["exact", "istartswith", "icontains", "iexact"],
+            "code": ["exact", "istartswith", "icontains", "iexact"],
+            "erp_id": ["exact", "istartswith", "icontains", "iexact"],
+            "journaux_id": ["exact", "istartswith", "icontains", "iexact"],
         }
         connection_class = ExtendedConnection
 
@@ -614,6 +647,30 @@ class Query(graphene.ObjectType):
         orderBy=graphene.List(of_type=graphene.String),
     )
 
+    erp_operations = OrderedDjangoFilterConnectionField(
+        ErpOperationsType,
+        orderBy=graphene.List(of_type=graphene.String),
+    )
+
+    banks = OrderedDjangoFilterConnectionField(
+        BanksType,
+        orderBy=graphene.List(of_type=graphene.String),
+    )
+
+    def resolve_banks(self, info, **kwargs):
+        id = kwargs.get('id', None)
+        query = Banks.objects.filter(is_deleted=False)
+        if id:
+            query = query.filter(id=id)
+        return gql_optimizer.query(query, info)
+
+    def resolve_erp_operations(self, info, **kwargs):
+        id = kwargs.get('id', None)
+        query = ErpOperations.objects.filter(is_deleted=False)
+        if id:
+            query = query.filter(id=id)
+        return gql_optimizer.query(query, info)
+
     def resolve_camu_notifications(self, info, **kwargs):
         id = kwargs.get('id', None)
         query = CamuNotification.objects.filter(is_read=False)
@@ -634,7 +691,6 @@ class Query(graphene.ObjectType):
                 query = query.filter(id=id)
 
         return gql_optimizer.query(query, info)
-
 
     def resolve_notifications(self, info, user_id):
         return CamuNotification.objects.filter(user_id=user_id).order_by('-created_at')
@@ -1446,7 +1502,8 @@ def set_user_deleted(user):
             user.i_user.delete_history()
             try:
                 from workflow.models import WF_Profile_Queue
-                WF_Profile_Queue.objects.filter(is_action_taken=False, user_id=user).update(user_id=None, is_assigned=False)
+                WF_Profile_Queue.objects.filter(is_action_taken=False, user_id=user).update(user_id=None,
+                                                                                            is_assigned=False)
             except Exception as e:
                 logger.info("failed to delete dependency from WF_Profile_Queue for" % {'user': str(user)})
         if user.t_user:
@@ -1667,13 +1724,16 @@ class SetPasswordMutation(graphene.relay.ClientIDMutation):
                 error=gettext_lazy("Failed to set password."),
             )
 
+
 class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
     """Obtain JSON Web Token mutation, with auto-provisioning from tblUsers """
 
     class Arguments:
         is_portal = graphene.Boolean(required=False)
+        is_fosa_user = graphene.Boolean(required=False)
+
     @classmethod
-    def mutate(cls, root, info,  is_portal=False,**kwargs):
+    def mutate(cls, root, info, is_portal=False, is_fosa_user=False, **kwargs):
         username = kwargs.get("username")
         if username:
             user_tuple = User.objects.get_or_create(username=username)
@@ -1684,8 +1744,15 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
                         raise JSONWebTokenError(_("User is not verified"))
                 elif user_data.is_portal_user and not is_portal:
                     raise JSONWebTokenError(_("Please enter valid credentials"))
+                elif user_data.is_fosa_user and not is_fosa_user:
+                    raise JSONWebTokenError(_("Please enter valid credentials"))
                 elif not user_data.is_portal_user and is_portal:
                     raise JSONWebTokenError(_("Please enter valid credentials"))
+                elif not user_data.is_fosa_user and is_fosa_user:
+                    raise JSONWebTokenError(_("Please enter valid credentials"))
+                elif user_data.is_fosa_user and is_fosa_user:
+                    if not user_data.i_user.is_verified:
+                        raise JSONWebTokenError(_("User is not verified"))
                 cls.update_profile_queue_for_approver(user_data)
             else:
                 logger.debug("Authentication with %s failed and could not be fetched from tblUsers", username)
@@ -1825,6 +1892,180 @@ class MarkNotificationAsRead(graphene.Mutation):
             return MarkNotificationAsRead(success=False)
 
 
+class BanksInput(graphene.InputObjectType):
+    id = graphene.String()
+    name = graphene.String()
+    alt_lang_name = graphene.String()
+    code = graphene.String()
+    erp_id = graphene.Int()
+    journaux_id = graphene.Int()
+
+
+class CreateBanks(graphene.Mutation):
+    success = graphene.Boolean()
+    message = graphene.String()
+    banks = graphene.Field(BanksType)
+
+    class Arguments:
+        input = BanksInput(required=True)
+
+    def mutate(self, info, input):
+        user = info.context.user
+        try:
+            banks = Banks(
+                name=input.name,
+                alt_lang_name=input.alt_lang_name,
+                code=input.code,
+                erp_id=input.erp_id,
+                journaux_id=input.journaux_id
+            )
+            banks.save(username=user.username)
+            logger.info(f"Banks created by {user.username}: {banks}")
+            return CreateBanks(success=True, message="Created Successfully.", banks=banks)
+        except Exception as e:
+            logger.error(f"Error creating Banks: {e}")
+            raise GraphQLError("Failed to create Banks.")
+
+
+class UpdateBanks(graphene.Mutation):
+    success = graphene.Boolean()
+    message = graphene.String()
+    banks = graphene.Field(BanksType)
+
+    class Arguments:
+        input = BanksInput()
+
+    def mutate(self, info, input):
+        id = input.id
+        user = info.context.user
+        try:
+            banks = Banks.objects.get(pk=id)
+
+            for key, value in input.items():
+                if value is not None:
+                    setattr(banks, key, value)
+
+            banks.save(username=user.username)
+            logger.info(f"Banks updated by {user.username}: {banks}")
+            return UpdateBanks(success=True, message="Updated Successfully.", banks=banks)
+        except ObjectDoesNotExist:
+            logger.warning(f"Banks with ID {id} not found for update.")
+            raise GraphQLError(f"Banks with ID {id} does not exist.")
+        except Exception as e:
+            logger.error(f"Error updating Banks: {e}")
+            raise GraphQLError("Failed to update Banks.")
+
+
+class DeleteBanks(graphene.Mutation):
+    success = graphene.Boolean()
+
+    class Arguments:
+        input = BanksInput()
+
+    def mutate(self, info, input):
+        id = input.id
+        try:
+            user = info.context.user
+            banks = Banks.objects.get(pk=id)
+            banks.is_deleted = True
+            banks.save(username=user.username)
+            logger.info(f"Banks marked as deleted by {user.username}: {banks}")
+            return DeleteBanks(success=True)
+        except ObjectDoesNotExist:
+            logger.warning(f"Banks with ID {id} not found for deletion.")
+            raise GraphQLError(f"Banks with ID {id} does not exist.")
+        except Exception as e:
+            logger.error(f"Error deleting Banks: {e}")
+            raise GraphQLError("Failed to delete Banks.")
+
+
+class ErpOperationsInput(graphene.InputObjectType):
+    id = graphene.String()
+    name = graphene.String()
+    alt_lang_name = graphene.String()
+    erp_id = graphene.Int()
+    access_id = graphene.String()
+    accounting_id = graphene.Int()
+
+
+class CreateErpOperations(graphene.Mutation):
+    success = graphene.Boolean()
+    message = graphene.String()
+    erp_operations = graphene.Field(ErpOperationsType)
+
+    class Arguments:
+        input = ErpOperationsInput(required=True)
+
+    def mutate(self, info, input):
+        user = info.context.user
+        try:
+            erp_operations = ErpOperations(
+                name=input.name,
+                alt_lang_name=input.alt_lang_name,
+                erp_id=input.erp_id,
+                access_id=input.access_id,
+                accounting_id=input.accounting_id
+            )
+            erp_operations.save(username=user.username)
+            logger.info(f"ErpOperations created by {user.username}: {erp_operations}")
+            return CreateErpOperations(success=True, message="Created Successfully.", erp_operations=erp_operations)
+        except Exception as e:
+            logger.error(f"Error creating ErpOperations: {e}")
+            raise GraphQLError("Failed to create ErpOperations.")
+
+
+class UpdateErpOperations(graphene.Mutation):
+    success = graphene.Boolean()
+    message = graphene.String()
+    erp_operations = graphene.Field(ErpOperationsType)
+
+    class Arguments:
+        input = ErpOperationsInput()
+
+    def mutate(self, info, input):
+        id = input.id
+        user = info.context.user
+        try:
+            erp_operations = ErpOperations.objects.get(pk=id)
+
+            for key, value in input.items():
+                if value is not None:
+                    setattr(erp_operations, key, value)
+
+            erp_operations.save(username=user.username)
+            logger.info(f"ErpOperations updated by {user.username}: {erp_operations}")
+            return UpdateErpOperations(success=True, message="Updated Successfully.", erp_operations=erp_operations)
+        except ObjectDoesNotExist:
+            logger.warning(f"ErpOperations with ID {id} not found for update.")
+            raise GraphQLError(f"ErpOperations with ID {id} does not exist.")
+        except Exception as e:
+            logger.error(f"Error updating ErpOperations: {e}")
+            raise GraphQLError("Failed to update ErpOperations.")
+
+
+class DeleteErpOperations(graphene.Mutation):
+    success = graphene.Boolean()
+
+    class Arguments:
+        input = ErpOperationsInput()
+
+    def mutate(self, info, input):
+        id = input.id
+        try:
+            user = info.context.user
+            erp_operations = ErpOperations.objects.get(pk=id)
+            erp_operations.is_deleted = True
+            erp_operations.save(username=user.username)
+            logger.info(f"ErpOperations marked as deleted by {user.username}: {erp_operations}")
+            return DeleteErpOperations(success=True)
+        except ObjectDoesNotExist:
+            logger.warning(f"ErpOperations with ID {id} not found for deletion.")
+            raise GraphQLError(f"ErpOperations with ID {id} does not exist.")
+        except Exception as e:
+            logger.error(f"Error deleting ErpOperations: {e}")
+            raise GraphQLError("Failed to delete ErpOperations.")
+
+
 class Mutation(graphene.ObjectType):
     create_role = CreateRoleMutation.Field()
     update_role = UpdateRoleMutation.Field()
@@ -1852,6 +2093,12 @@ class Mutation(graphene.ObjectType):
     delete_generic_config = DeleteGenericConfig.Field()
     erp_resync_mutation = ERPReSyncMutation.Field()
     mark_notification_as_read = MarkNotificationAsRead.Field()
+    create_erp_operations = CreateErpOperations.Field()
+    update_erp_operations = UpdateErpOperations.Field()
+    delete_erp_operations = DeleteErpOperations.Field()
+    create_banks = CreateBanks.Field()
+    update_banks = UpdateBanks.Field()
+    delete_banks = DeleteBanks.Field()
 
 
 def on_role_mutation(sender, **kwargs):

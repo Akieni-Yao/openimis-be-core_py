@@ -5,7 +5,7 @@ from gettext import gettext as _
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError, ObjectDoesNotExist
 from django.core.mail import send_mail, BadHeaderError
 from django.template import loader
 from django.utils.encoding import force_bytes
@@ -15,6 +15,7 @@ from core.apps import CoreConfig
 from core.constants import APPROVER_ROLE
 from core.models import User, InteractiveUser, Officer, UserRole, Role
 from core.validation.obligatoryFieldValidation import validate_payload_for_obligatory_fields
+from policyholder.models import PolicyHolderUser
 from policyholder.portal_utils import make_portal_reset_password_link
 
 logger = logging.getLogger(__file__)
@@ -192,8 +193,8 @@ def create_or_update_claim_admin(user_id, data, audit_user_id, connected):
     return claim_admin, created
 
 
-def create_or_update_core_user(user_uuid, username, i_user=None, t_user=None, officer=None, claim_admin=None, station=None):
-
+def create_or_update_core_user(user_uuid, username, i_user=None, t_user=None, officer=None, claim_admin=None,
+                               station=None):
     if user_uuid:
         # This intentionally fails if the provided uuid doesn't exist as we don't want clients to set it
         user = User.objects.get(id=user_uuid)
@@ -305,3 +306,28 @@ def find_approvers():
     else:
         approvers = []
     return approvers
+
+
+def find_ph_approver(policy_holder):
+    try:
+        if not policy_holder:
+            logger.error("Invalid policyholder object provided.")
+            raise ValueError("Invalid policyholder object.")
+
+        ph_user = PolicyHolderUser.objects.filter(
+            policy_holder=policy_holder,
+            is_deleted=False
+        ).first()
+
+        if not ph_user:
+            logger.warning(f"No active PolicyHolderUser found for PolicyHolder ID {policy_holder.id}")
+            raise ObjectDoesNotExist(f"No approver found for PolicyHolder ID {policy_holder.id}")
+
+        return ph_user.user
+
+    except ObjectDoesNotExist as e:
+        logger.error(f"PolicyHolderUser not found: {e}")
+        raise
+    except Exception as e:
+        logger.exception(f"An unexpected error occurred: {e}")
+        raise

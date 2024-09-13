@@ -318,7 +318,9 @@ def mark_all_notifications_as_read(user_id):
 
 def update_or_create_resync(id, user):
     from core.models import ErpApiFailedLogs
+    from policyholder.models import PolicyHolder
     from datetime import datetime
+    import json
     headers = {
         'Content-Type': 'application/json',
         'Tmr-Api-Key': 'test',
@@ -332,13 +334,26 @@ def update_or_create_resync(id, user):
             logger.error(f"ERP API Failed logs with ID {id} not found or already resynced")
             raise ValueError("Data not found or already resynced.")
 
+        if erp_logs_to_resync.module == 'policyholder':
+            policyholder_data = PolicyHolder.objects.filter(id=erp_logs_to_resync.policy_holder.id, is_deleted=False).first()
+            if policyholder_data and policyholder_data.erp_partner_access_id:
+                erp_logs_to_resync.resync_status = 1
+                erp_logs_to_resync.message = json.dumps({"message": "Already resynced"})
+                erp_logs_to_resync.resync_at = datetime.now()
+                erp_logs_to_resync.resync_by = user
+                erp_logs_to_resync.save()
+                logger.info(f"Successfully resynced ERP failed logs with ID {id} for policyholder.")
+                return erp_logs_to_resync
+            else:
+                logger.info(f"No valid erp_partner_access_id found for policyholder with ID {erp_logs_to_resync.policy_holder.id}. Proceeding with the original resync logic.")
+
         logger.info(f"Updating ERP Failed logs with ID {id}")
         url = erp_logs_to_resync.request_url
         json_data = erp_logs_to_resync.request_data
 
         response = requests.post(url, headers=headers, json=json_data, verify=False)
 
-        if response.status_code == 200:
+        if response.status_code in [200, 201]:
             # Update the original entry with resync_status = 1
             erp_logs_to_resync.resync_status = 1
             erp_logs_to_resync.resync_at = datetime.now()
@@ -386,6 +401,7 @@ def update_or_create_resync(id, user):
     else:
         # Handle case where no ID is provided (if applicable)
         raise ValueError("ID argument is required for resync operation.")
+
 
 
 def find_object_without_resync(id):

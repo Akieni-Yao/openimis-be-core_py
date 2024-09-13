@@ -339,7 +339,7 @@ class InteractiveUser(VersionedModel):
     email = models.CharField(db_column="EmailId", max_length=200, blank=True, null=True)
     is_verified = models.BooleanField(default=False)
     is_fosa_emp = models.BooleanField(db_column="IsFosaEmp", default=False)
-    fosa_emp_permissions = models.CharField(db_column="FosaEmpPermissions",max_length=255, null=True)
+    fosa_emp_permissions = models.CharField(db_column="FosaEmpPermissions", max_length=255, null=True)
     private_key = models.CharField(
         db_column="PrivateKey",
         max_length=256,
@@ -515,6 +515,7 @@ class User(UUIDModel, PermissionsMixin):
     claim_admin = models.ForeignKey("claim.ClaimAdmin", on_delete=models.CASCADE, blank=True, null=True)
     station = models.ForeignKey(Station, models.DO_NOTHING, db_column='StationId', blank=True, null=True)
     is_portal_user = models.BooleanField(db_column='IsPortalUser', default=False)
+    is_fosa_user = models.BooleanField(db_column='IsFosaUser', default=False)
 
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = []
@@ -1136,7 +1137,7 @@ class AuditLogs(models.Model):
     audit_by_id = models.CharField(db_column="AuditByID", max_length=256)
     created_time = models.DateTimeField(db_column='CreatedTime', auto_now_add=True, null=True)
     json_ext = JSONField(db_column='JsonExt', blank=True, null=True)
-    
+
     class Meta:
         managed = True
         db_table = "tblAuditLogs"
@@ -1171,7 +1172,8 @@ class ErpApiFailedLogs(models.Model):
     id = models.AutoField(db_column='ID', primary_key=True)
     module = models.CharField(max_length=50, db_column='Module', null=True)
     policy_holder = models.ForeignKey(PolicyHolder, db_column="PolicyHolder",
-                                      on_delete=models.deletion.DO_NOTHING, related_name="policyholder_erp_logs", null=True)
+                                      on_delete=models.deletion.DO_NOTHING, related_name="policyholder_erp_logs",
+                                      null=True)
     claim = models.ForeignKey(Claim, on_delete=models.DO_NOTHING,
                               db_column='Claim', related_name='claim_erp_logs', null=True)
     contract = models.ForeignKey(Contract, on_delete=models.deletion.DO_NOTHING, db_column="Contract",
@@ -1187,7 +1189,8 @@ class ErpApiFailedLogs(models.Model):
                                 related_name="service_erp_logs", null=True)
     item = models.ForeignKey(Item, on_delete=models.DO_NOTHING, db_column='Item', related_name="item_erp_logs",
                              null=True)
-    parent = models.ForeignKey('self', on_delete=models.deletion.DO_NOTHING, db_column="Parent",related_name='parent_erp_logs', null=True)
+    parent = models.ForeignKey('self', on_delete=models.deletion.DO_NOTHING, db_column="Parent",
+                               related_name='parent_erp_logs', null=True)
     action = models.CharField(max_length=50, db_column='Action', null=True)
     response_status_code = models.IntegerField(
         db_column='ResponseCode', null=True)
@@ -1201,9 +1204,36 @@ class ErpApiFailedLogs(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.DO_NOTHING, db_column='CreatedBy', null=True)
     resync_status = models.IntegerField(db_column='ResyncStatus', null=True)
     resync_at = models.DateTimeField(db_column='ResyncAt', null=True)
-    resync_by = models.ForeignKey(User, on_delete=models.DO_NOTHING, db_column='ResyncBy',related_name='erp_resync_by', null=True)
-
+    resync_by = models.ForeignKey(User, on_delete=models.DO_NOTHING, db_column='ResyncBy', related_name='erp_resync_by',
+                                  null=True)
 
     class Meta:
         managed = True
         db_table = "tblErpFailedLogs"
+
+
+class ErpOperations(HistoryModel):
+    name = models.CharField(max_length=255, db_column='Name', null=True)
+    alt_lang_name = models.CharField(max_length=255, db_column='AltLangName', null=True)
+    code = models.CharField(max_length=255, db_column='Code', null=True)
+    erp_id = models.IntegerField(db_column='ERPID', null=True)
+    access_id = models.CharField(max_length=255, db_column='AccessID', null=True)
+    accounting_id = models.IntegerField(db_column='AccountingID', null=True)
+    is_default = models.BooleanField(db_column='IsDefault', default=False)
+
+    class Meta:
+        managed = True
+        db_table = "tblErpOperations"
+
+
+class Banks(HistoryModel):
+    name = models.CharField(max_length=255, db_column='Name', null=True)
+    alt_lang_name = models.CharField(max_length=255, db_column='AltLangName', null=True)
+    code = models.CharField(max_length=255, db_column='Code', null=True)
+    erp_id = models.IntegerField(db_column='ERPID', null=True)
+    journaux_id = models.IntegerField(db_column='JournauxID', null=True)
+    is_default = models.BooleanField(db_column='IsDefault', default=False)
+
+    class Meta:
+        managed = True
+        db_table = "tblBanks"
