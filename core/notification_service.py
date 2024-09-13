@@ -139,11 +139,11 @@ def insuree_status_added(insuree):
         }
 
         # Construct the redirect URL
-        redirect_url = f"/insuree/insurees/insuree/{insuree.id}"
+        redirect_url = f"/insuree/insurees/insuree/{insuree.uuid}"
 
         # Notify the users
         NotificationService.notify_users(approvers, "Insuree", message, redirect_url, None)
-        logging.info(f"Notification sent successfully for Insuree ID {insuree.id}.")
+        logging.info(f"Notification sent successfully for Insuree ID {insuree.uuid}.")
 
     except Exception as e:
         logging.error(f"Error in policy_holder_created: {e}", exc_info=True)
@@ -467,8 +467,8 @@ def payment_created(payment_obj):
             'fr': message_template['fr'].format(payment_code=payment_obj.payment_code)
         }
 
-        redirect_url = f"/payment/overview/{payment_obj.id}"
-        portal_redirect_url = f"/paymentform/:id={payment_obj.id}"
+        redirect_url = f"/payment/overview/{payment_obj.uuid}"
+        portal_redirect_url = f"/paymentform/:id={payment_obj.uuid}"
         NotificationService.notify_users(approvers, "Payment", message, redirect_url, portal_redirect_url)
     except Exception as e:
         print(f"Error in payment_created: {e}")
@@ -506,8 +506,8 @@ def payment_updated(payment_obj):
             'fr': message_template['fr'].format(payment_code=payment_obj.payment_code)
         }
 
-        redirect_url = f"/payment/overview/{payment_obj.id}"
-        portal_redirect_url = f"/paymentform/:id={payment_obj.id}"
+        redirect_url = f"/payment/overview/{payment_obj.uuid}"
+        portal_redirect_url = f"/paymentform/:id={payment_obj.uuid}"
         NotificationService.notify_users(approvers, "Payment", message, redirect_url, portal_redirect_url)
     except Exception as e:
         print(f"Error in payment_created: {e}")
@@ -556,8 +556,8 @@ def claim_created(claim_obj):
             'en': message_template['en'].format(claim_code=claim_obj.code),
             'fr': message_template['fr'].format(claim_code=claim_obj.code)
         }
-        redirect_url = f"/claim/healthFacilities/claim/{claim_obj.id}"
-        portal_redirect_url = f"/claimForm/:id={claim_obj.id}"
+        redirect_url = f"/claim/healthFacilities/claim/{claim_obj.uuid}"
+        portal_redirect_url = f"/claimForm/:id={claim_obj.uuid}"
         NotificationService.notify_users(approvers, "Claim", message, redirect_url, portal_redirect_url)
     except Exception as e:
         print(f"Error in claim_created: {e}")
@@ -596,8 +596,8 @@ def claim_updated(claim_obj):
             'en': message_template['en'].format(claim_code=claim_obj.code),
             'fr': message_template['fr'].format(claim_code=claim_obj.code)
         }
-        redirect_url = f"/claim/healthFacilities/claim/{claim_obj.id}"
-        portal_redirect_url = f"/claimForm/:id={claim_obj.id}"
+        redirect_url = f"/claim/healthFacilities/claim/{claim_obj.uuid}"
+        portal_redirect_url = f"/claimForm/:id={claim_obj.uuid}"
         NotificationService.notify_users(approvers, "Claim", message, redirect_url, portal_redirect_url)
     except Exception as e:
         print(f"Error in claim_created: {e}")
