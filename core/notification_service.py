@@ -400,47 +400,6 @@ def contract_updated(contract_object):
         logging.error(f"Error in contract_created: {e}", exc_info=True)
 
 
-def pa_req_created(pa_req_object):
-    try:
-        # Validate the pa_req_object
-        if not pa_req_object or not hasattr(pa_req_object, 'id') or not hasattr(pa_req_object, 'code'):
-            raise ValueError("Invalid Prior Authorization Request object or missing ID/code.")
-
-        # Find approvers
-        approvers = find_approvers()
-        if not approvers:
-            raise ValueError("No approvers found.")
-
-        # Retrieve the message template and format the message
-        message_template = pre_auth_req_status_messages.get('PA_CREATED', None)
-        if not message_template:
-            raise ValueError("Message template not found for PA_CREATED.")
-
-        # Format the message with the auth_code
-        message = {
-            'en': message_template['en'].format(auth_code=pa_req_object.code),
-            'fr': message_template['fr'].format(auth_code=pa_req_object.code)
-        }
-        # Encode penalty ID and construct redirect URL
-        id_string = f"PreAuthorizationType:{pa_req_object.id}"
-        encoded_str = base64_encode(id_string)
-        if not encoded_str:
-            raise ValueError("Failed to encode Pre Authorization ID.")
-        # Construct the redirect URL
-        pa_req_id = pa_req_object.id if pa_req_object.id else ''
-        redirect_url = f"/claim/healthFacilities/preauthorizationForm/{pa_req_id}"
-        portal_redirect_url = f"/autharizationForm/:id={id_string}"
-        # Notify users
-        NotificationService.notify_users(approvers, "Claim", message, redirect_url, portal_redirect_url)
-
-        # Log successful notification
-        logging.info(f"Notification sent successfully for Prior Authorization Request Code {pa_req_object.code}.")
-
-    except Exception as e:
-        # Log the exception with traceback
-        logging.error(f"Error in pa_req_created: {e}", exc_info=True)
-
-
 def contract_submitted(contract_object):
     approvers = find_approvers()
     message = contract_status_messages.get('STATE_EXECUTABLE', None)
@@ -532,7 +491,7 @@ def fosa_created(fosa_obj):
             'fr': message_template['fr'].format(fosa_code=fosa_obj.fosa_code)
         }
 
-        redirect_url = f"/location/healthFacility/{fosa_obj.id}"
+        redirect_url = f"/location/healthFacility/{fosa_obj.uuid}"
         NotificationService.notify_users(approvers, "Location", message, redirect_url, None)
     except Exception as e:
         print(f"Error in fosa_created: {e}")
@@ -601,6 +560,48 @@ def claim_updated(claim_obj):
         NotificationService.notify_users(approvers, "Claim", message, redirect_url, portal_redirect_url)
     except Exception as e:
         print(f"Error in claim_created: {e}")
+
+
+
+def pa_req_created(pa_req_object):
+    try:
+        # Validate the pa_req_object
+        if not pa_req_object or not hasattr(pa_req_object, 'id') or not hasattr(pa_req_object, 'code'):
+            raise ValueError("Invalid Prior Authorization Request object or missing ID/code.")
+
+        # Find approvers
+        approvers = find_approvers()
+        if not approvers:
+            raise ValueError("No approvers found.")
+
+        # Retrieve the message template and format the message
+        message_template = pre_auth_req_status_messages.get('PA_CREATED', None)
+        if not message_template:
+            raise ValueError("Message template not found for PA_CREATED.")
+
+        # Format the message with the auth_code
+        message = {
+            'en': message_template['en'].format(auth_code=pa_req_object.code),
+            'fr': message_template['fr'].format(auth_code=pa_req_object.code)
+        }
+        # Encode penalty ID and construct redirect URL
+        id_string = f"PreAuthorizationType:{pa_req_object.id}"
+        encoded_str = base64_encode(id_string)
+        if not encoded_str:
+            raise ValueError("Failed to encode Pre Authorization ID.")
+        # Construct the redirect URL
+        pa_req_id = pa_req_object.id if pa_req_object.id else ''
+        redirect_url = f"/claim/healthFacilities/preauthorizationForm/{pa_req_id}"
+        portal_redirect_url = f"/autharizationForm/:id={id_string}"
+        # Notify users
+        NotificationService.notify_users(approvers, "Claim", message, redirect_url, portal_redirect_url)
+
+        # Log successful notification
+        logging.info(f"Notification sent successfully for Prior Authorization Request Code {pa_req_object.code}.")
+
+    except Exception as e:
+        # Log the exception with traceback
+        logging.error(f"Error in pa_req_created: {e}", exc_info=True)
 
 
 def pa_req_updated(pa_req_object):
