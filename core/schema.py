@@ -1735,24 +1735,27 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
     @classmethod
     def mutate(cls, root, info, is_portal=False, is_fosa_user=False, **kwargs):
         username = kwargs.get("username")
+
         if username:
             user_tuple = User.objects.get_or_create(username=username)
             if len(user_tuple) > 0:
                 user_data = user_tuple[0]
-                if user_data.is_portal_user and is_portal:
+                # Portal user login check
+                if is_portal:
+                    if not user_data.is_portal_user:
+                        raise JSONWebTokenError(_("Please enter valid credentials"))
                     if not user_data.i_user.is_verified:
                         raise JSONWebTokenError(_("User is not verified"))
-                elif user_data.is_portal_user and not is_portal:
-                    raise JSONWebTokenError(_("Please enter valid credentials"))
-                elif user_data.is_fosa_user and not is_fosa_user:
-                    raise JSONWebTokenError(_("Please enter valid credentials"))
-                elif not user_data.is_portal_user and is_portal:
-                    raise JSONWebTokenError(_("Please enter valid credentials"))
-                elif not user_data.is_fosa_user and is_fosa_user:
-                    raise JSONWebTokenError(_("Please enter valid credentials"))
-                elif user_data.is_fosa_user and is_fosa_user:
+                # FOSA user login check
+                elif is_fosa_user:
+                    if not user_data.is_fosa_user:
+                        raise JSONWebTokenError(_("Please enter valid credentials"))
                     if not user_data.i_user.is_verified:
                         raise JSONWebTokenError(_("User is not verified"))
+                # Normal user login check (if neither Portal nor FOSA)
+                else:
+                    if user_data.is_portal_user or user_data.is_fosa_user:
+                        raise JSONWebTokenError(_("Please enter valid credentials"))
                 cls.update_profile_queue_for_approver(user_data)
             else:
                 logger.debug("Authentication with %s failed and could not be fetched from tblUsers", username)
