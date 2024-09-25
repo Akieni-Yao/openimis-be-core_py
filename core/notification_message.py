@@ -2,23 +2,23 @@
 policy_holder_status_messages = {
     'PH_STATUS_CREATED': {
         'en': 'Policy Holder Created {policy_holder_code}',
-        'fr': 'Policy Holder Created {policy_holder_code}'
+        'fr': 'Souscripteur créé {policy_holder_code}'
     },
     'PH_STATUS_PENDING': {
         'en': 'Policy Holder Pending {policy_holder_code}',
-        'fr': 'Policy Holder Pending {policy_holder_code}'
+        'fr': "Souscripteur en attente d'approbation {policy_holder_code}"
     },
     'PH_STATUS_APPROVED': {
         'en': 'Policy Holder Approved {policy_holder_code}',
-        'fr': 'Policy Holder Approved {policy_holder_code}'
+        'fr': 'Souscripteur approuvé {policy_holder_code}'
     },
     'PH_STATUS_REJECTED': {
         'en': 'Policy Holder Rejected {policy_holder_code}',
-        'fr': 'Policy Holder Rejected {policy_holder_code}'
+        'fr': 'Souscripteur rejecté {policy_holder_code}'
     },
     'PH_STATUS_REWORK': {
         'en': 'Policy Holder Rework {policy_holder_code}',
-        'fr': 'Policy Holder Rework {policy_holder_code}'
+        'fr': 'Mise à jour du des informations du souscripteur requise {policy_holder_code}'
     }
 }
 
@@ -26,7 +26,7 @@ policy_holder_status_messages = {
 fosa_status_messages = {
     'FOSA_STATUS_CREATED': {
         'en': 'FOSA Created {fosa_code}',
-        'fr': 'FOSA Created {fosa_code}'
+        'fr': 'FOSA créé {fosa_code}'
     }
 }
 
@@ -34,11 +34,11 @@ fosa_status_messages = {
 insuree_status_messages = {
     'PH_INS_CREATED': {
         'en': 'Insuree Created {chf_id} for Policy Holder {policy_holder_code}',
-        'fr': 'Insuree Created {chf_id} for Policy Holder {policy_holder_code}'
+        'fr': 'assurée créé {chf_id} pour le souscripteur {policy_holder_code}'
     },
     'PRE_REGISTERED': {
         'en': 'Insuree Created {chf_id}',
-        'fr': 'Insuree Created {chf_id}'
+        'fr': 'assurée créé {chf_id}'
     },
     'APPROVED': {
         'en': 'Insuree Status Changed: Approved {chf_id}',
@@ -198,7 +198,7 @@ penalty_status_messages = {
 claim_status_messages = {
     'STATUS_CREATED': {
         'en': 'Claim Created {claim_code}',
-        'fr': 'Claim Created {claim_code}'
+        'fr': "La feuille de soin {claim_code} a été sauvegardée. Veuillez l'ouvrir pour plus d'action."
     },
     'STATUS_REJECTED': {
         'en': 'Claim Rejected {claim_code}',
@@ -206,19 +206,19 @@ claim_status_messages = {
     },
     'STATUS_ENTERED': {
         'en': 'Claim Entered {claim_code}',
-        'fr': 'Claim Entered {claim_code}'
+        'fr': 'Demande saisie {claim_code}'
     },
     'STATUS_CHECKED': {
-        'en': 'Claim Submitted {claim_code}',
-        'fr': 'Claim Submitted {claim_code}'
+        'en': 'Claim Checked {claim_code}',
+        'fr': 'Demande vérifiée {claim_code}'
     },
     'STATUS_PROCESSED': {
         'en': 'Claim Processed {claim_code}',
-        'fr': 'Claim Processed {claim_code}'
+        'fr': 'Demande traitée {claim_code}'
     },
     'STATUS_VALUATED': {
         'en': 'Claim Approved {claim_code}',
-        'fr': 'Claim Approved {claim_code}'
+        'fr': 'Demande évaluée {claim_code}'
     },
     'STATUS_REWORK': {
         'en': 'Claim Rework {claim_code}',
@@ -234,22 +234,22 @@ claim_status_messages = {
 pre_auth_req_status_messages = {
     'PA_REJECTED': {
         'en': 'Prior Authorization Request Rejected {auth_code}',
-        'fr': 'Prior Authorization Request Rejected {auth_code}'
+        'fr': "Votre demande d'accord préalable numéro {auth_code} a été réjetée."
     },
     'PA_CREATED': {
         'en': 'Prior Authorization Request Created {auth_code}',
-        'fr': 'Prior Authorization Request Created {auth_code}'
+        'fr': "Nouvelle demande d'accord préalable créé. Veuillez le consulter pour plus de details {auth_code}"
     },
     'PA_WAITING_FOR_APPROVAL': {
         'en': 'Prior Authorization Request Waiting for Approval {auth_code}',
-        'fr': 'Prior Authorization Request Waiting for Approval {auth_code}'
+        'fr': "Votre demande d'accord préalable numéro {auth_code} est en attente d'approbation"
     },
     'PA_REWORK': {
         'en': 'Prior Authorization Request Rework {auth_code}',
-        'fr': 'Prior Authorization Request Rework {auth_code}'
+        'fr': "Mise à jour requise pour votre demande d'accord préalable {auth_code}. Veuillez l'ouvrir plus de details"
     },
     'PA_APPROVED': {
         'en': 'Prior Authorization Request Approved {auth_code}',
-        'fr': 'Prior Authorization Request Approved {auth_code}'
+        'fr': "Votre demande d'accord préalable numéro {auth_code} a été approuvée"
     }
 }

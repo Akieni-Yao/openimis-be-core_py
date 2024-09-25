@@ -1237,3 +1237,36 @@ class Banks(HistoryModel):
     class Meta:
         managed = True
         db_table = "tblBanks"
+
+
+class ScheduledTask(models.Model):
+    task_name = models.CharField(max_length=255)
+    task_path = models.CharField(max_length=255)
+    run_at = models.DateTimeField()  # This could store the first run date or next run
+    frequency = models.CharField(max_length=50, choices=[('monthly', 'Monthly'), ('weekly', 'Weekly'), ('daily', 'Daily')])
+    day_of_month = models.PositiveIntegerField(null=True, blank=True)  # For monthly tasks (1-31)
+    day_of_week = models.PositiveIntegerField(null=True, blank=True)   # For weekly tasks (0=Sunday, 6=Saturday)
+    hour_of_day = models.PositiveIntegerField(null=True, blank=True)   # 24-hour format, when the task should run
+    is_completed = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.task_name
+    
+    class Meta:
+        managed = True
+        db_table = "tblScheduledTask"
+
+
+class CronJobLog(models.Model):
+    task = models.ForeignKey('ScheduledTask', on_delete=models.DO_NOTHING, related_name='logs')
+    executed_at = models.DateTimeField(auto_now_add=True)  # When the job was executed
+    status = models.CharField(max_length=50, choices=[('success', 'Success'), ('failed', 'Failed')])
+    output = models.TextField(null=True, blank=True)  # Any output from the job
+    error = models.TextField(null=True, blank=True)   # Any errors from the job
+
+    def __str__(self):
+        return f"Log for {self.task.task_name} at {self.executed_at}"
+
+    class Meta:
+        managed = True
+        db_table = "tblCronJobLog"
