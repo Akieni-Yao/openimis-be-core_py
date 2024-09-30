@@ -1,3 +1,5 @@
+import importlib
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from datetime import timedelta
@@ -46,12 +48,22 @@ class Command(BaseCommand):
 
     def run_task_logic(self, task):
         """
-        Placeholder for the actual cron job logic. You can replace this with the logic 
-        that needs to be executed for each cron job.
+        Dynamically loads and executes the cron job based on the task's path.
         """
-        print(f"Running task: {task.task_name}")
-        # Example output
-        return f"{task.task_name} executed successfully at {timezone.now()}"
+        try:
+            # Split the task path into module and function
+            module_path, function_name = task.task_path.rsplit('.', 1)
+            # Dynamically import the module
+            module = importlib.import_module(module_path)
+            # Get the function from the module
+            func = getattr(module, function_name)
+            # Call the function
+            result = func()
+            # Log output or return success message
+            return f"{task.task_name} executed successfully at {timezone.now()} with result: {result}"
+
+        except (ImportError, AttributeError) as e:
+            raise ImportError(f"Failed to run task '{task.task_name}'. Error: {str(e)}")
 
     def reschedule_task(self, task):
         """

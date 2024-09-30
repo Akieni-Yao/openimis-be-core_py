@@ -139,3 +139,30 @@ def create_scheduled_task(
     except Exception as e:
         logger.error(f"Error occurred while scheduling task '{task_name}': {str(e)}")
         return None
+
+
+def reset_erp_op_before_save(erp_operations):
+    fields = [
+        "name",
+        "alt_lang_name",
+        "code",
+        "erp_id",
+        "access_id",
+        "accounting_id",
+    ]
+    for field in fields:
+        if hasattr(erp_operations, field):
+            setattr(erp_operations, field, None)
+
+
+def reset_banks_before_save(banks):
+    fields = [
+        "name",
+        "alt_lang_name",
+        "code",
+        "erp_id",
+        "journaux_id",
+    ]
+    for field in fields:
+        if hasattr(banks, field):
+            setattr(banks, field, None)

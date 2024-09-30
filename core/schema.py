@@ -48,6 +48,7 @@ from insuree.models import Insuree, Family
 from .apps import CoreConfig
 from .constants import APPROVER_ROLE
 from .gql_queries import *
+from .services.base import reset_erp_op_before_save, reset_banks_before_save
 from .utils import flatten_dict, update_or_create_resync
 from .models import ModuleConfiguration, FieldControl, MutationLog, Language, RoleMutation, UserMutation, GenericConfig, \
     AuditLogs, ErpApiFailedLogs, ErpOperations, Banks
@@ -1943,7 +1944,9 @@ class UpdateBanks(graphene.Mutation):
         user = info.context.user
         try:
             banks = Banks.objects.get(pk=id)
-
+            if not banks:
+                return UpdateBanks(success=False, message=f"Banks with ID {id} not found for update.", banks=None)
+            reset_banks_before_save(banks)
             for key, value in input.items():
                 if value is not None:
                     setattr(banks, key, value)
@@ -2030,15 +2033,17 @@ class UpdateErpOperations(graphene.Mutation):
         user = info.context.user
         try:
             erp_operations = ErpOperations.objects.get(pk=id)
-
+            if not erp_operations:
+                return UpdateErpOperations(success=False, message=f"ErpOperations with ID {id} not found for update.", erp_operations=None)
+            reset_erp_op_before_save(erp_operations)
             for key, value in input.items():
                 if value is not None:
                     setattr(erp_operations, key, value)
-
             erp_operations.save(username=user.username)
             logger.info(f"ErpOperations updated by {user.username}: {erp_operations}")
             return UpdateErpOperations(success=True, message="Updated Successfully.", erp_operations=erp_operations)
-        except ObjectDoesNotExist:
+
+        except ErpOperations.DoesNotExist:
             logger.warning(f"ErpOperations with ID {id} not found for update.")
             raise GraphQLError(f"ErpOperations with ID {id} does not exist.")
         except Exception as e:
