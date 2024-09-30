@@ -1247,6 +1247,8 @@ class ScheduledTask(models.Model):
     day_of_month = models.PositiveIntegerField(null=True, blank=True)  # For monthly tasks (1-31)
     day_of_week = models.PositiveIntegerField(null=True, blank=True)   # For weekly tasks (0=Sunday, 6=Saturday)
     hour_of_day = models.PositiveIntegerField(null=True, blank=True)   # 24-hour format, when the task should run
+    module = models.CharField(max_length=255, null=True)
+    reference = models.CharField(max_length=255, null=True)
     is_completed = models.BooleanField(default=False)
 
     def __str__(self):
