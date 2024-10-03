@@ -1336,6 +1336,7 @@ class CreateUserMutation(OpenIMISMutation):
     @classmethod
     def async_mutate(cls, user, **data):
         try:
+            print(f"...................... user {user}")
             if type(user) is AnonymousUser or not user.id:
                 raise ValidationError("mutation.authentication_required")
             if User.objects.filter(username=data['username']).exists():
@@ -1345,6 +1346,7 @@ class CreateUserMutation(OpenIMISMutation):
             from core.utils import TimeUtils
             data['validity_from'] = TimeUtils.now()
             data['audit_user_id'] = user.id_for_audit
+        
             update_or_create_user(data, user)
             return None
         except Exception as exc:
@@ -1423,6 +1425,9 @@ def update_or_create_user(data, user):
     client_mutation_id = data.get("client_mutation_id", None)
     # client_mutation_label = data.get("client_mutation_label", None)
 
+    # FOSA USER ACTIVE IS TRUE FOR IS_FOSA_USER AND VERIFY TRUE
+    data['is_fosa_user'] = True if data.get("health_facility_id") is not None else False
+    
     incoming_email = data.get('email')
     current_user = None
     if 'uuid' in data and data['uuid']:
@@ -1455,7 +1460,8 @@ def update_or_create_user(data, user):
     user_uuid = data.pop('uuid') if 'uuid' in data else None
 
     if UT_INTERACTIVE in data["user_types"]:
-        if type(user) is AnonymousUser or not user.id:
+        
+        if type(user) is AnonymousUser or not user.id:           
             i_user, i_user_created = create_or_update_interactive_user(
                 user_uuid, data, -1, len(data["user_types"]) > 1)
         else:
@@ -1476,7 +1482,7 @@ def update_or_create_user(data, user):
 
     core_user, core_user_created = create_or_update_core_user(
         user_uuid=user_uuid, username=username, i_user=i_user, officer=officer, claim_admin=claim_admin,
-        station=station)
+        station=station, is_fosa_user=data['is_fosa_user'])
 
     if client_mutation_id:
         UserMutation.object_mutated(user, core_user=core_user, client_mutation_id=client_mutation_id)
@@ -1738,7 +1744,9 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
         username = kwargs.get("username")
 
         if username:
+            
             user_tuple = User.objects.get_or_create(username=username)
+          
             if len(user_tuple) > 0:
                 user_data = user_tuple[0]
                 # Portal user login check
