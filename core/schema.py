@@ -1336,7 +1336,6 @@ class CreateUserMutation(OpenIMISMutation):
     @classmethod
     def async_mutate(cls, user, **data):
         try:
-            print(f"...................... user {user}")
             if type(user) is AnonymousUser or not user.id:
                 raise ValidationError("mutation.authentication_required")
             if User.objects.filter(username=data['username']).exists():

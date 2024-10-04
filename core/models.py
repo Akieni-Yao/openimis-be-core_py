@@ -210,7 +210,6 @@ class UserManager(BaseUserManager):
         # only auto-provision django user if registered as interactive user
         try:
             username = kwargs['username']
-            # breakpoint()
             i_user = InteractiveUser.objects.get(
                 login_name=username,
                 *filter_validity())
