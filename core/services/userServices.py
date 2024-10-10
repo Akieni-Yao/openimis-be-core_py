@@ -29,17 +29,23 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
         "phone": "phone",
         "email": "email",
         "language": "language_id",
-        "health_facility_id": "health_facility_id",
+        "health_facility_id": "health_facility_id"
     }
     data_subset = {v: data.get(k) for k, v in i_fields.items()}
     data_subset["audit_user_id"] = audit_user_id
     data_subset["role_id"] = data["roles"][0]  # The actual roles are stored in their own table
     data_subset["is_associated"] = connected
+    
+    # IS VERIFIED FOR FOSA USERS
+    if data.get('is_fosa_user') is not None :
+        data_subset["is_verified"] = data.get('is_fosa_user')
+        
     if user_id:
         # TODO we might want to update a user that has been deleted. Use Legacy ID ?
         i_user = InteractiveUser.objects.filter(validity_to__isnull=True, user__id=user_id).first()
     else:
         i_user = InteractiveUser.objects.filter(validity_to__isnull=True, login_name=data_subset["login_name"]).first()
+        
     if i_user:
         i_user.save_history()
         [setattr(i_user, k, v) for k, v in data_subset.items()]
@@ -56,6 +62,7 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
         created = True
 
     i_user.save()
+    
     create_or_update_user_roles(i_user, data["roles"], audit_user_id)
     if "districts" in data:
         create_or_update_user_districts(
@@ -132,6 +139,7 @@ def create_or_update_officer(user_id, data, audit_user_id, connected):
     data_subset = {v: data.get(k) for k, v in officer_fields.items()}
     data_subset["audit_user_id"] = audit_user_id
     data_subset["has_login"] = connected
+        
     if user_id:
         # TODO we might want to update a user that has been deleted. Use Legacy ID ?
         officer = Officer.objects.filter(
@@ -166,11 +174,13 @@ def create_or_update_claim_admin(user_id, data, audit_user_id, connected):
         "phone": "phone",
         "email": "email_id",
         "birth_date": "dob",
-        "health_facility_id": "health_facility_id",
+        "health_facility_id": "health_facility_id"
     }
+    
     data_subset = {v: data.get(k) for k, v in ca_fields.items()}
     data_subset["audit_user_id"] = audit_user_id
     data_subset["has_login"] = connected
+    
     # Since ClaimAdmin is not in the core module, we have to dynamically load it.
     # If the Claim module is not loaded and someone requests a ClaimAdmin, this will raise an Exception
     claim_admin_class = apps.get_model("claim", "ClaimAdmin")
@@ -193,8 +203,7 @@ def create_or_update_claim_admin(user_id, data, audit_user_id, connected):
     return claim_admin, created
 
 
-def create_or_update_core_user(user_uuid, username, i_user=None, t_user=None, officer=None, claim_admin=None,
-                               station=None):
+def create_or_update_core_user(user_uuid, username, i_user=None, t_user=None, officer=None, claim_admin=None, station=None, is_fosa_user=None):
     if user_uuid:
         # This intentionally fails if the provided uuid doesn't exist as we don't want clients to set it
         user = User.objects.get(id=user_uuid)
@@ -222,6 +231,9 @@ def create_or_update_core_user(user_uuid, username, i_user=None, t_user=None, of
         user.claim_admin = claim_admin
     if station:
         user.station = station
+    
+    if is_fosa_user is not None:    
+        user.is_fosa_user = is_fosa_user
     user.save()
     return user, created
 

@@ -209,8 +209,9 @@ class UserManager(BaseUserManager):
     def auto_provision_user(self, **kwargs):
         # only auto-provision django user if registered as interactive user
         try:
+            username = kwargs['username']
             i_user = InteractiveUser.objects.get(
-                login_name=kwargs['username'],
+                login_name=username,
                 *filter_validity())
         except InteractiveUser.DoesNotExist:
             raise PermissionDenied
