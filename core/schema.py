@@ -910,7 +910,6 @@ class Query(graphene.ObjectType):
 
         # Do NOT use the query optimizer here ! It would make the t_user, officer etc as deferred fields if they are not
         # explicitly requested in the GraphQL response. However, this prevents the dynamic remapping of the User object.
-        print("********************************************* reslove user")
         return user_query.filter(*user_filters).distinct()
 
     def resolve_role(self, info, **kwargs):
