@@ -570,6 +570,8 @@ class Query(graphene.ObjectType):
         user_types=graphene.List(of_type=UserTypeEnum),
         language=graphene.String(),
         showHistory=graphene.Boolean(),
+        is_fosa_user=graphene.Boolean(),
+        is_portal_user=graphene.Boolean(),
         str=graphene.String(description="text search that will check username, last name, other names and email"),
         description="This interface provides access to the various types of users in openIMIS. The main resource"
                     "is limited to a username and refers either to a TechnicalUser or InteractiveUser. Only the latter"
@@ -810,9 +812,10 @@ class Query(graphene.ObjectType):
     def resolve_users(self, info, email=None, last_name=None, other_names=None, phone=None,
                       role_id=None, roles=None, health_facility_id=None, region_id=None,
                       district_id=None, municipality_id=None, birth_date_from=None, birth_date_to=None,
-                      user_types=None, language=None, village_id=None, region_ids=None, **kwargs):
+                      user_types=None, language=None, village_id=None, region_ids=None, is_portal_user=None, is_fosa_user=None, **kwargs):
         # if not info.context.user.has_perms(CoreConfig.gql_query_users_perms):
         #     raise PermissionError("Unauthorized")
+        
 
         user_filters = []
         user_query = User.objects.exclude(t_user__isnull=False)
@@ -889,6 +892,12 @@ class Query(graphene.ObjectType):
             user_filters.append(Q(officer__officer_villages__location__parent_id=municipality_id))
         if village_id:
             user_filters.append(Q(officer__officer_villages__location_id=village_id))
+            
+        if is_fosa_user is not None:
+            user_filters.append(Q(is_fosa_user=is_fosa_user))
+            
+        if is_portal_user is not None:
+            user_filters.append(Q(is_portal_user=is_portal_user))
 
         if user_types:
             ut_conditions = {
@@ -901,6 +910,7 @@ class Query(graphene.ObjectType):
 
         # Do NOT use the query optimizer here ! It would make the t_user, officer etc as deferred fields if they are not
         # explicitly requested in the GraphQL response. However, this prevents the dynamic remapping of the User object.
+        print("********************************************* reslove user")
         return user_query.filter(*user_filters).distinct()
 
     def resolve_role(self, info, **kwargs):
