@@ -55,6 +55,7 @@ from .models import ModuleConfiguration, FieldControl, MutationLog, Language, Ro
 from .services.roleServices import check_role_unique_name
 from .services.userServices import check_user_unique_email
 from .validation.obligatoryFieldValidation import validate_payload_for_obligatory_fields
+from location.models import HealthFacility
 
 MAX_SMALLINT = 32767
 MIN_SMALLINT = -32768
@@ -560,6 +561,7 @@ class Query(graphene.ObjectType):
         role_id=graphene.Int(),
         roles=graphene.List(of_type=graphene.Int),
         health_facility_id=graphene.Int(description="Base health facility ID (not UUID!)"),
+        health_facility_uuid = graphene.String(description="Base health facility UUID"),
         region_id=graphene.Int(),
         region_ids=graphene.List(of_type=graphene.Int),
         district_id=graphene.Int(),
@@ -570,6 +572,8 @@ class Query(graphene.ObjectType):
         user_types=graphene.List(of_type=UserTypeEnum),
         language=graphene.String(),
         showHistory=graphene.Boolean(),
+        is_fosa_user=graphene.Boolean(),
+        is_portal_user=graphene.Boolean(),
         str=graphene.String(description="text search that will check username, last name, other names and email"),
         description="This interface provides access to the various types of users in openIMIS. The main resource"
                     "is limited to a username and refers either to a TechnicalUser or InteractiveUser. Only the latter"
@@ -810,9 +814,10 @@ class Query(graphene.ObjectType):
     def resolve_users(self, info, email=None, last_name=None, other_names=None, phone=None,
                       role_id=None, roles=None, health_facility_id=None, region_id=None,
                       district_id=None, municipality_id=None, birth_date_from=None, birth_date_to=None,
-                      user_types=None, language=None, village_id=None, region_ids=None, **kwargs):
+                      user_types=None, language=None, village_id=None, region_ids=None, is_portal_user=None, is_fosa_user=None, health_facility_uuid=None, **kwargs):
         # if not info.context.user.has_perms(CoreConfig.gql_query_users_perms):
         #     raise PermissionError("Unauthorized")
+        
 
         user_filters = []
         user_query = User.objects.exclude(t_user__isnull=False)
@@ -863,6 +868,11 @@ class Query(graphene.ObjectType):
             user_filters.append(Q(i_user__health_facility_id=health_facility_id) |
                                 Q(officer__location_id=health_facility_id) |
                                 Q(claim_admin__health_facility_id=health_facility_id))
+        
+        if health_facility_uuid:
+            health_facility_ids = HealthFacility.objects.filter(uuid=health_facility_uuid).values_list('id', flat=True)
+            user_filters.append(Q(i_user__health_facility_id__in=health_facility_ids))
+        
         if birth_date_from:
             user_filters.append(Q(officer__dob__gte=birth_date_from) |
                                 Q(officer__veo_dob__gte=birth_date_from) |
@@ -889,6 +899,12 @@ class Query(graphene.ObjectType):
             user_filters.append(Q(officer__officer_villages__location__parent_id=municipality_id))
         if village_id:
             user_filters.append(Q(officer__officer_villages__location_id=village_id))
+            
+        if is_fosa_user is not None:
+            user_filters.append(Q(is_fosa_user=is_fosa_user))
+            
+        if is_portal_user is not None:
+            user_filters.append(Q(is_portal_user=is_portal_user))
 
         if user_types:
             ut_conditions = {
@@ -1336,6 +1352,7 @@ class CreateUserMutation(OpenIMISMutation):
     @classmethod
     def async_mutate(cls, user, **data):
         try:
+            print(f"...................... user {user}")
             if type(user) is AnonymousUser or not user.id:
                 raise ValidationError("mutation.authentication_required")
             if User.objects.filter(username=data['username']).exists():
