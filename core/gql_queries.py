@@ -182,6 +182,8 @@ class UserGQLType(DjangoObjectType):
     email = graphene.String()
     phone = graphene.String()
     station = graphene.Field(StationGQLType)
+    is_fosa_user = graphene.Boolean(),
+    is_portal_user = graphene.Boolean(),
 
     class Meta:
         model = User
