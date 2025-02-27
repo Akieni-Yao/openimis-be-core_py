@@ -11,7 +11,7 @@ from rest_framework.decorators import action, api_view
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import User, ExportableQueryModel
+from .models import InteractiveUser, User, ExportableQueryModel
 from .scheduler import scheduler
 from .serializers import UserSerializer
 from django.utils.translation import ugettext as _
@@ -59,6 +59,35 @@ def get_scheduled_jobs(request):
     return Response([_serialize_job(job) for job in scheduler.get_jobs()])
 
 
+@api_view(['GET'])
+def force_verify_user(request):
+    if not request.query_params.get('user_id'):
+        return Response({"message": "User ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+    i_user = InteractiveUser.objects.filter(
+        validity_to__isnull=True, user__id=request.query_params.get('user_id')
+    ).first()
+    if not i_user:
+        return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+    if i_user:
+        i_user.is_verified = True
+        i_user.save()
+    return Response({"message": "User verified"}, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+def force_un_verify_user(request):
+    if not request.query_params.get('user_id'):
+        return Response({"message": "User ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+    i_user = InteractiveUser.objects.filter(
+        validity_to__isnull=True, user__id=request.query_params.get('user_id')
+    ).first()
+    if not i_user:
+        return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+    if i_user:
+        i_user.is_verified = False
+        i_user.save()
+    return Response({"message": "User unverified"}, status=status.HTTP_200_OK)
+    
+    
 @api_view(['POST'])
 def generate_qr(request):
 
