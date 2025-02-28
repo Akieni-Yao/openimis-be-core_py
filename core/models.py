@@ -365,6 +365,17 @@ class InteractiveUser(VersionedModel):
         help_text="has a claim admin or enrolment officer account",
     )
     role_id = models.IntegerField(db_column="RoleID", null=False)
+    password_reset_token = models.CharField(
+        db_column="PasswordResetToken",
+        max_length=256,
+        blank=True,
+        null=True,
+    )
+    password_reset_token_expiration = models.DateTimeField(
+        db_column="PasswordResetTokenExpiration",
+        blank=True,
+        null=True,
+    )
 
     @property
     def id_for_audit(self):
