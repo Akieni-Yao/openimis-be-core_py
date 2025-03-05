@@ -33,6 +33,8 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
         "language": "language_id",
         "health_facility_id": "health_facility_id",
     }
+    current_password = data.pop("current_password") if data.get("current_password") else None
+    
     data_subset = {v: data.get(k) for k, v in i_fields.items()}
     data_subset["audit_user_id"] = audit_user_id
     data_subset["role_id"] = data["roles"][
@@ -43,7 +45,6 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
     # IS VERIFIED FOR FOSA USERS
     is_fosa_user = data.get("is_fosa_user") if data.get("is_fosa_user") is not None else False
     if is_fosa_user:
-        print("------------------------------ is fosa user")
         data_subset["is_verified"] = data.get("is_fosa_user")
 
     if user_id:
@@ -59,16 +60,22 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
     if i_user:
         i_user.save_history()
         [setattr(i_user, k, v) for k, v in data_subset.items()]
-        if "password" in data:
+        if "password" in data and current_password:
+            check_password = i_user.check_password(current_password)
+            if not check_password or check_password is False:
+                print("------------------------------ wrong_old_password")
+                raise Exception("Current password is incorrect")
             i_user.set_password(data["password"])
         created = False
     else:
         i_user = InteractiveUser(**data_subset)
-        if "password" in data:
-            i_user.set_password(data["password"])
-        else:
-            # No password provided for creation, will have to be set later.
-            i_user.stored_password = "locked"
+        # No password provided for creation, will have to be set later.
+        i_user.stored_password = "locked"
+        # if "password" in data:
+        #     i_user.set_password(data["password"])
+        # else:
+        #     # No password provided for creation, will have to be set later.
+        #     i_user.stored_password = "locked"
         created = True
 
     i_user.save()

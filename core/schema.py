@@ -1522,6 +1522,7 @@ class UserBase:
     phone = graphene.String(required=False)
     email = graphene.String(required=False)
     password = graphene.String(required=False)
+    current_password = graphene.String(required=False)
     health_facility_id = graphene.Int(required=False)
     districts = graphene.List(graphene.Int, required=False)
     language = graphene.String(required=True, description="Language code for the user")
@@ -1603,6 +1604,7 @@ class UpdateUserMutation(OpenIMISMutation):
 
             data["validity_from"] = TimeUtils.now()
             data["audit_user_id"] = user.id_for_audit
+            print("------------------------------ data", data)
             update_or_create_user(data, user)
             return None
         except Exception as exc:
