@@ -1604,7 +1604,6 @@ class UpdateUserMutation(OpenIMISMutation):
 
             data["validity_from"] = TimeUtils.now()
             data["audit_user_id"] = user.id_for_audit
-            print("------------------------------ data", data)
             update_or_create_user(data, user)
             return None
         except Exception as exc:
