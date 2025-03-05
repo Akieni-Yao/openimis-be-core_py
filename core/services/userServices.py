@@ -23,7 +23,9 @@ from policyholder.portal_utils import make_portal_reset_password_link
 logger = logging.getLogger(__file__)
 
 
-def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
+def create_or_update_interactive_user(user_id, data, audit_user_id, connected, user=None):
+    from core.schema import OpenimisObtainJSONWebToken
+    
     i_fields = {
         "username": "login_name",
         "other_names": "other_names",
@@ -34,6 +36,8 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
         "health_facility_id": "health_facility_id",
     }
     current_password = data.pop("current_password") if data.get("current_password") else None
+    
+    refresh_token = None
     
     data_subset = {v: data.get(k) for k, v in i_fields.items()}
     data_subset["audit_user_id"] = audit_user_id
@@ -66,6 +70,7 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
                 print("------------------------------ wrong_old_password")
                 raise Exception("Current password is incorrect")
             i_user.set_password(data["password"])
+            refresh_token = True
         created = False
     else:
         i_user = InteractiveUser(**data_subset)
@@ -79,6 +84,39 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
         created = True
 
     i_user.save()
+    
+    if refresh_token:
+        from unittest.mock import Mock
+        from django.test import RequestFactory
+        from graphql import ResolveInfo
+        from django.http import HttpRequest
+        from graphql.language.ast import Field, Name, OperationDefinition, Document, SelectionSet
+
+        # request = HttpRequest()
+        # request.user = user
+        factory = RequestFactory()
+        request = factory.post("/graphql/")  # Mock a POST request
+        request.user = user
+        
+        field_name = Name(value='token')
+        field_ast = Field(name=field_name)
+        selection_set = SelectionSet(selections=[field_ast])
+        operation = OperationDefinition(operation='mutation', selection_set=selection_set)
+        document = Document(definitions=[operation])
+        
+        mock_info = Mock()
+        mock_info.field_name = "token"
+        mock_info.field_asts = [field_ast]  # Keeping the deprecated name if necessary
+        mock_info.return_type = None
+        mock_info.parent_type = None
+        mock_info.schema = None
+        mock_info.fragments = {}
+        mock_info.root_value = None
+        mock_info.operation = operation
+        mock_info.variable_values = {}
+        mock_info.context = request
+        
+        OpenimisObtainJSONWebToken.mutate(None, mock_info, username=data['username'], password=data['password'])
 
     create_or_update_user_roles(i_user, data["roles"], audit_user_id)
     if "districts" in data:
