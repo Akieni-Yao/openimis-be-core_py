@@ -1692,11 +1692,11 @@ def update_or_create_user(data, user):
     if UT_INTERACTIVE in data["user_types"]:
         if type(user) is AnonymousUser or not user.id:
             i_user, i_user_created = create_or_update_interactive_user(
-                user_uuid, data, -1, len(data["user_types"]) > 1, user
+                user_uuid, data, -1, len(data["user_types"]) > 1
             )
         else:
             i_user, i_user_created = create_or_update_interactive_user(
-                user_uuid, data, user.id_for_audit, len(data["user_types"]) > 1, user
+                user_uuid, data, user.id_for_audit, len(data["user_types"]) > 1
             )
     else:
         i_user, i_user_created = None, False

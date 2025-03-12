@@ -2,6 +2,10 @@ import logging
 from datetime import datetime
 from gettext import gettext as _
 
+from dotenv import load_dotenv
+import os
+
+import uuid
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
@@ -10,6 +14,8 @@ from django.core.mail import send_mail, BadHeaderError
 from django.template import loader
 from django.utils.encoding import force_bytes
 from django.utils.http import urlencode, urlsafe_base64_encode
+import graphql_jwt
+from django.http import JsonResponse
 
 from core.apps import CoreConfig
 from core.constants import APPROVER_ROLE
@@ -18,14 +24,21 @@ from core.validation.obligatoryFieldValidation import (
     validate_payload_for_obligatory_fields,
 )
 from policyholder.models import PolicyHolderUser
-from policyholder.portal_utils import make_portal_reset_password_link
+from policyholder.portal_utils import (
+    make_portal_reset_password_link,
+    new_user_welcome_email,
+)
 
 logger = logging.getLogger(__file__)
 
+load_dotenv()
 
-def create_or_update_interactive_user(user_id, data, audit_user_id, connected, user=None):
-    from core.schema import OpenimisObtainJSONWebToken
-    
+# PORTAL_SUBSCRIBER_URL = os.getenv("PORTAL_SUBSCRIBER_URL", "")
+PORTAL_FOSA_URL = os.getenv("PORTAL_FOSA_URL", "")
+IMIS_URL = os.getenv("IMIS_URL", "")
+
+
+def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
     i_fields = {
         "username": "login_name",
         "other_names": "other_names",
@@ -35,10 +48,12 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected, u
         "language": "language_id",
         "health_facility_id": "health_facility_id",
     }
-    current_password = data.pop("current_password") if data.get("current_password") else None
-    
-    refresh_token = None
-    
+    current_password = (
+        data.pop("current_password") if data.get("current_password") else None
+    )
+
+    created = False
+
     data_subset = {v: data.get(k) for k, v in i_fields.items()}
     data_subset["audit_user_id"] = audit_user_id
     data_subset["role_id"] = data["roles"][
@@ -47,7 +62,9 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected, u
     data_subset["is_associated"] = connected
 
     # IS VERIFIED FOR FOSA USERS
-    is_fosa_user = data.get("is_fosa_user") if data.get("is_fosa_user") is not None else False
+    is_fosa_user = (
+        data.get("is_fosa_user") if data.get("is_fosa_user") is not None else False
+    )
     if is_fosa_user:
         data_subset["is_verified"] = data.get("is_fosa_user")
 
@@ -70,12 +87,15 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected, u
                 print("------------------------------ wrong_old_password")
                 raise Exception("Current password is incorrect")
             i_user.set_password(data["password"])
-            refresh_token = True
+            # refresh_token = True
         created = False
     else:
         i_user = InteractiveUser(**data_subset)
-        # No password provided for creation, will have to be set later.
+        token = uuid.uuid4().hex[:16].upper()
         i_user.stored_password = "locked"
+        i_user.password_reset_token = token
+        # No password provided for creation, will have to be set later.
+
         # if "password" in data:
         #     i_user.set_password(data["password"])
         # else:
@@ -84,39 +104,19 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected, u
         created = True
 
     i_user.save()
-    
-    if refresh_token:
-        from unittest.mock import Mock
-        from django.test import RequestFactory
-        from graphql import ResolveInfo
-        from django.http import HttpRequest
-        from graphql.language.ast import Field, Name, OperationDefinition, Document, SelectionSet
+    if created:
+        verification_url = None
 
-        # request = HttpRequest()
-        # request.user = user
-        factory = RequestFactory()
-        request = factory.post("/graphql/")  # Mock a POST request
-        request.user = user
-        
-        field_name = Name(value='token')
-        field_ast = Field(name=field_name)
-        selection_set = SelectionSet(selections=[field_ast])
-        operation = OperationDefinition(operation='mutation', selection_set=selection_set)
-        document = Document(definitions=[operation])
-        
-        mock_info = Mock()
-        mock_info.field_name = "token"
-        mock_info.field_asts = [field_ast]  # Keeping the deprecated name if necessary
-        mock_info.return_type = None
-        mock_info.parent_type = None
-        mock_info.schema = None
-        mock_info.fragments = {}
-        mock_info.root_value = None
-        mock_info.operation = operation
-        mock_info.variable_values = {}
-        mock_info.context = request
-        
-        OpenimisObtainJSONWebToken.mutate(None, mock_info, username=data['username'], password=data['password'])
+        if data.get("is_fosa_user"):
+            verification_url = f"{PORTAL_FOSA_URL}/fosa/verify-user-and-update-password?user_id={i_user.id}&token={token}&username={i_user.username}"
+        else:
+            verification_url = f"{IMIS_URL}/front/verify-user-and-update-password?user_id={i_user.id}&token={token}&username={i_user.username}"
+
+        print("=====> send new_user_welcome_email Start")
+
+        new_user_welcome_email(i_user, verification_url)
+
+        print("=====> send new_user_welcome_email Done")
 
     create_or_update_user_roles(i_user, data["roles"], audit_user_id)
     if "districts" in data:
