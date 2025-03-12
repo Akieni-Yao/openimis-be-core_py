@@ -33,7 +33,7 @@ logger = logging.getLogger(__file__)
 
 load_dotenv()
 
-# PORTAL_SUBSCRIBER_URL = os.getenv("PORTAL_SUBSCRIBER_URL", "")
+PORTAL_SUBSCRIBER_URL = os.getenv("PORTAL_SUBSCRIBER_URL", "")
 PORTAL_FOSA_URL = os.getenv("PORTAL_FOSA_URL", "")
 IMIS_URL = os.getenv("IMIS_URL", "")
 
