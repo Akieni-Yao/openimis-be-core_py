@@ -106,11 +106,14 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
     i_user.save()
     if created:
         verification_url = None
+        
+        # for subscriber portal the email is sent once the policyholderUser is created 
+        # The code can be found in policyholder module
 
         if data.get("is_fosa_user"):
-            verification_url = f"{PORTAL_FOSA_URL}/fosa/verify-user-and-update-password?user_id={i_user.id}&token={token}&username={i_user.username}"
+            verification_url = f"{PORTAL_FOSA_URL}/fosa/verify-user-and-update-password?user_id={i_user.uuid}&token={token}&username={i_user.username}"
         else:
-            verification_url = f"{IMIS_URL}/front/verify-user-and-update-password?user_id={i_user.id}&token={token}&username={i_user.username}"
+            verification_url = f"{IMIS_URL}/front/verify-user-and-update-password?user_id={i_user.uuid}&token={token}&username={i_user.username}"
 
         print("=====> send new_user_welcome_email Start")
 
