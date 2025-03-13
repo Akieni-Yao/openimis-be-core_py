@@ -1522,6 +1522,7 @@ class UserBase:
     phone = graphene.String(required=False)
     email = graphene.String(required=False)
     password = graphene.String(required=False)
+    current_password = graphene.String(required=False)
     health_facility_id = graphene.Int(required=False)
     districts = graphene.List(graphene.Int, required=False)
     language = graphene.String(required=True, description="Language code for the user")
@@ -2023,6 +2024,7 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
 
         if username:
             user_tuple = User.objects.get_or_create(username=username)
+            print(f"------------------------- LOGIN 0 {user_tuple}")
 
             if len(user_tuple) > 0:
                 user_data = user_tuple[0]
@@ -2042,6 +2044,8 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
                 else:
                     if user_data.is_portal_user or user_data.is_fosa_user:
                         raise JSONWebTokenError(_("Please enter valid credentials"))
+
+                print("------------------------- LOGIN 1")
                 cls.update_profile_queue_for_approver(user_data)
             else:
                 logger.debug(
@@ -2052,6 +2056,7 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
 
     def update_profile_queue_for_approver(user):
         try:
+            print("------------------------- LOGIN 2")
             i_user = user[0].i_user
             logger.info(f"i_user retrieved: {i_user}")
 
@@ -2061,6 +2066,7 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
             has_approver_role = UserRole.objects.filter(
                 user=i_user, role=approver_role
             ).exists()
+            print("------------------------- LOGIN 3")
             logger.info(f"User has approver role: {has_approver_role}")
             print("has_approver_role : ", has_approver_role)
             WF_Profile_Queue.objects.filter(
@@ -2069,17 +2075,21 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
             WF_Profile_Queue.objects.filter(
                 is_action_taken=False, family__head_insuree__validity_to__isnull=False
             ).delete()
+            print("------------------------- LOGIN 4")
             if has_approver_role:
                 # user_profile_queue = WF_Profile_Queue.objects.filter(
                 #     user_id__pro_que_user=user[0].id,
                 #     is_assigned=True,
                 #     is_action_taken=False
                 # )
+                print("------------------------- LOGIN 5")
                 user_profile_queue = WF_Profile_Queue.objects.filter(
                     user_id__id=user[0].id, is_assigned=True, is_action_taken=False
                 ).first()
                 print("user_profile_queue : ", user_profile_queue)
                 logger.info(f"User profile queue found: {user_profile_queue}")
+
+                print("------------------------- LOGIN 6")
 
                 if not user_profile_queue:
                     records_with_null_user_id = WF_Profile_Queue.objects.filter(
@@ -2087,9 +2097,11 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
                         is_assigned=False,
                         is_action_taken=False,
                     ).first()
+                    print("------------------------- LOGIN 7")
                     print("records_with_null_user_id : ", records_with_null_user_id)
                     if records_with_null_user_id:
                         print("==========   profile assigned  ==============")
+                        print("------------------------- LOGIN 8")
                         WF_Profile_Queue.objects.filter(
                             id=records_with_null_user_id.id
                         ).update(user_id_id=user[0].id, is_assigned=True)
@@ -2104,11 +2116,14 @@ class OpenimisObtainJSONWebToken(mixins.ResolveMixin, JSONWebTokenMutation):
                             legacy_id__isnull=True,
                             head=True,
                         ).first()
+                        print("------------------------- LOGIN 9")
                         if head_insuree.status == STATUS_WAITING_FOR_APPROVAL:
+                            print("------------------------- LOGIN 10")
                             Family.objects.filter(
                                 id=records_with_null_user_id.family.id
                             ).update(status=STATUS_WAITING_FOR_APPROVAL)
                         # records_with_null_user_id.update(user_id=user[0].id, is_assigned=True)
+                        print("------------------------- LOGIN 11")
                         logger.info("Records with null user_id updated")
             else:
                 logger.info("This user does not have the 'approver' role.")

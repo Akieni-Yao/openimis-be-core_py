@@ -2,6 +2,10 @@ import logging
 from datetime import datetime
 from gettext import gettext as _
 
+from dotenv import load_dotenv
+import os
+
+import uuid
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
@@ -10,6 +14,8 @@ from django.core.mail import send_mail, BadHeaderError
 from django.template import loader
 from django.utils.encoding import force_bytes
 from django.utils.http import urlencode, urlsafe_base64_encode
+import graphql_jwt
+from django.http import JsonResponse
 
 from core.apps import CoreConfig
 from core.constants import APPROVER_ROLE
@@ -18,9 +24,18 @@ from core.validation.obligatoryFieldValidation import (
     validate_payload_for_obligatory_fields,
 )
 from policyholder.models import PolicyHolderUser
-from policyholder.portal_utils import make_portal_reset_password_link
+from policyholder.portal_utils import (
+    make_portal_reset_password_link,
+    new_user_welcome_email,
+)
 
 logger = logging.getLogger(__file__)
+
+load_dotenv()
+
+PORTAL_SUBSCRIBER_URL = os.getenv("PORTAL_SUBSCRIBER_URL", "")
+PORTAL_FOSA_URL = os.getenv("PORTAL_FOSA_URL", "")
+IMIS_URL = os.getenv("IMIS_URL", "")
 
 
 def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
@@ -33,6 +48,12 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
         "language": "language_id",
         "health_facility_id": "health_facility_id",
     }
+    current_password = (
+        data.pop("current_password") if data.get("current_password") else None
+    )
+
+    created = False
+
     data_subset = {v: data.get(k) for k, v in i_fields.items()}
     data_subset["audit_user_id"] = audit_user_id
     data_subset["role_id"] = data["roles"][
@@ -41,9 +62,10 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
     data_subset["is_associated"] = connected
 
     # IS VERIFIED FOR FOSA USERS
-    is_fosa_user = data.get("is_fosa_user") if data.get("is_fosa_user") is not None else False
+    is_fosa_user = (
+        data.get("is_fosa_user") if data.get("is_fosa_user") is not None else False
+    )
     if is_fosa_user:
-        print("------------------------------ is fosa user")
         data_subset["is_verified"] = data.get("is_fosa_user")
 
     if user_id:
@@ -59,19 +81,45 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
     if i_user:
         i_user.save_history()
         [setattr(i_user, k, v) for k, v in data_subset.items()]
-        if "password" in data:
+        if "password" in data and current_password:
+            check_password = i_user.check_password(current_password)
+            if not check_password or check_password is False:
+                print("------------------------------ wrong_old_password")
+                raise Exception("Current password is incorrect")
             i_user.set_password(data["password"])
+            # refresh_token = True
         created = False
     else:
         i_user = InteractiveUser(**data_subset)
-        if "password" in data:
-            i_user.set_password(data["password"])
-        else:
-            # No password provided for creation, will have to be set later.
-            i_user.stored_password = "locked"
+        token = uuid.uuid4().hex[:16].upper()
+        i_user.stored_password = "locked"
+        i_user.password_reset_token = token
+        # No password provided for creation, will have to be set later.
+
+        # if "password" in data:
+        #     i_user.set_password(data["password"])
+        # else:
+        #     # No password provided for creation, will have to be set later.
+        #     i_user.stored_password = "locked"
         created = True
 
     i_user.save()
+    if created:
+        verification_url = None
+        
+        # for subscriber portal the email is sent once the policyholderUser is created 
+        # The code can be found in policyholder module
+
+        if data.get("is_fosa_user"):
+            verification_url = f"{PORTAL_FOSA_URL}/fosa/verify-user-and-update-password?user_id={i_user.uuid}&token={token}&username={i_user.username}"
+        else:
+            verification_url = f"{IMIS_URL}/front/verify-user-and-update-password?user_id={i_user.uuid}&token={token}&username={i_user.username}"
+
+        print("=====> send new_user_welcome_email Start")
+
+        new_user_welcome_email(i_user, verification_url)
+
+        print("=====> send new_user_welcome_email Done")
 
     create_or_update_user_roles(i_user, data["roles"], audit_user_id)
     if "districts" in data:
