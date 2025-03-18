@@ -10,7 +10,12 @@ from cached_property import cached_property
 from dirtyfields import DirtyFieldsMixin
 from django.apps import apps
 from django.conf import settings
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin, Group
+from django.contrib.auth.models import (
+    AbstractBaseUser,
+    BaseUserManager,
+    PermissionsMixin,
+    Group,
+)
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.core.files.base import ContentFile
 from django.db import models
@@ -35,6 +40,7 @@ class UUIDModel(models.Model):
     Abstract entity, parent of all (new) openIMIS entities.
     Enforces the UUID identifier.
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     class Meta:
@@ -45,8 +51,8 @@ class UUIDModel(models.Model):
 
 
 class BaseVersionedModel(models.Model):
-    validity_from = DateTimeField(db_column='ValidityFrom', default=py_datetime.now)
-    validity_to = DateTimeField(db_column='ValidityTo', blank=True, null=True)
+    validity_from = DateTimeField(db_column="ValidityFrom", default=py_datetime.now)
+    validity_to = DateTimeField(db_column="ValidityTo", blank=True, null=True)
 
     def save_history(self, **kwargs):
         if not self.id:  # only copy if the data is being updated
@@ -56,6 +62,7 @@ class BaseVersionedModel(models.Model):
         if hasattr(histo, "uuid"):
             setattr(histo, "uuid", uuid.uuid4())
         from core import datetime
+
         histo.validity_to = datetime.datetime.now()
         histo.legacy_id = self.id
         histo.save()
@@ -64,6 +71,7 @@ class BaseVersionedModel(models.Model):
     def delete_history(self, **kwargs):
         self.save_history()
         from core import datetime
+
         now = datetime.datetime.now()
         self.validity_from = now
         self.validity_to = now
@@ -81,24 +89,21 @@ class BaseVersionedModel(models.Model):
 
 
 class VersionedModel(BaseVersionedModel):
-    legacy_id = models.IntegerField(
-        db_column='LegacyID', blank=True, null=True)
+    legacy_id = models.IntegerField(db_column="LegacyID", blank=True, null=True)
 
     class Meta:
         abstract = True
 
 
 class UUIDVersionedModel(BaseVersionedModel):
-    legacy_id = models.UUIDField(
-        db_column='LegacyID', blank=True, null=True)
+    legacy_id = models.UUIDField(db_column="LegacyID", blank=True, null=True)
 
     class Meta:
         abstract = True
 
 
 class ExtendableModel(models.Model):
-    json_ext = JSONField(
-        db_column='JsonExt', blank=True, null=True)
+    json_ext = JSONField(db_column="JsonExt", blank=True, null=True)
 
     class Meta:
         abstract = True
@@ -108,28 +113,27 @@ class ModuleConfiguration(UUIDModel):
     """
     Generic entity to save every modules' configuration (json format)
     """
+
     module = models.CharField(max_length=20)
-    MODULE_LAYERS = [('fe', 'frontend'), ('be', 'backend')]
+    MODULE_LAYERS = [("fe", "frontend"), ("be", "backend")]
     layer = models.CharField(
         max_length=2,
         choices=MODULE_LAYERS,
-        default='be',
+        default="be",
     )
     version = models.CharField(max_length=10)
     config = models.TextField()
     # is_exposed indicates wherever a configuration is safe to be accessible from api
     # DON'T EXPOSE (backend) configurations that contain credentials,...
     is_exposed = models.BooleanField(default=False)
-    is_disabled_until = models.DateTimeField(
-        default=None,
-        blank=True,
-        null=True
-    )
+    is_disabled_until = models.DateTimeField(default=None, blank=True, null=True)
 
     @classmethod
-    def get_or_default(cls, module, default, layer='be'):
-        if bool(os.environ.get('NO_DATABASE', False)):
-            logger.info('env NO_DATABASE set to True: ModuleConfiguration not loaded from db!')
+    def get_or_default(cls, module, default, layer="be"):
+        if bool(os.environ.get("NO_DATABASE", False)):
+            logger.info(
+                "env NO_DATABASE set to True: ModuleConfiguration not loaded from db!"
+            )
             return default
 
         try:
@@ -137,54 +141,55 @@ class ModuleConfiguration(UUIDModel):
             db_configuration = cls.objects.get(
                 Q(is_disabled_until=None) | Q(is_disabled_until__lt=now),
                 layer=layer,
-                module=module
+                module=module,
             )._cfg
             return {**default, **db_configuration}
         except ModuleConfiguration.DoesNotExist:
-            logger.info('No %s configuration, using default!' % module)
+            logger.info("No %s configuration, using default!" % module)
             return default
         except Exception:
-            logger.error('Failed to load %s configuration, using default!\n%s: %s' % (
-                module, sys.exc_info()[0].__name__, sys.exc_info()[1]))
+            logger.error(
+                "Failed to load %s configuration, using default!\n%s: %s"
+                % (module, sys.exc_info()[0].__name__, sys.exc_info()[1])
+            )
             return default
 
     @cached_property
     def _cfg(self):
         import collections
+
         return json.loads(self.config, object_pairs_hook=collections.OrderedDict)
 
     def __str__(self):
         return "%s [%s]" % (self.module, self.version)
 
     class Meta:
-        db_table = 'core_ModuleConfiguration'
+        db_table = "core_ModuleConfiguration"
 
 
 class FieldControl(UUIDModel):
     module = models.ForeignKey(
-        ModuleConfiguration, models.DO_NOTHING, related_name='controls')
+        ModuleConfiguration, models.DO_NOTHING, related_name="controls"
+    )
     field = models.CharField(unique=True, max_length=250)
     # mask: Hidden | Readonly | Mandatory
     usage = models.IntegerField(blank=True, null=True)
 
     class Meta:
-        db_table = 'core_FieldControl'
+        db_table = "core_FieldControl"
 
 
 class Language(models.Model):
-    code = models.CharField(db_column='LanguageCode',
-                            primary_key=True, max_length=5)
-    name = models.CharField(db_column='LanguageName', max_length=50)
-    sort_order = models.IntegerField(
-        db_column='SortOrder', blank=True, null=True)
+    code = models.CharField(db_column="LanguageCode", primary_key=True, max_length=5)
+    name = models.CharField(db_column="LanguageName", max_length=50)
+    sort_order = models.IntegerField(db_column="SortOrder", blank=True, null=True)
 
     class Meta:
         managed = True
-        db_table = 'tblLanguages'
+        db_table = "tblLanguages"
 
 
 class UserManager(BaseUserManager):
-
     def _create_core_user(self, **fields):
         user = User(**fields)
         user.save()
@@ -197,30 +202,29 @@ class UserManager(BaseUserManager):
         return tech
 
     def create_user(self, username, password, email=None, **extra_fields):
-        extra_fields.setdefault('is_staff', False)
-        extra_fields['is_superuser'] = False
+        extra_fields.setdefault("is_staff", False)
+        extra_fields["is_superuser"] = False
         self._create_tech_user(username, email, password, **extra_fields)
 
     def create_superuser(self, username, password=None, email=None, **extra_fields):
-        extra_fields['is_staff'] = True
-        extra_fields['is_superuser'] = True
+        extra_fields["is_staff"] = True
+        extra_fields["is_superuser"] = True
         self._create_tech_user(username, email, password, **extra_fields)
 
     def auto_provision_user(self, **kwargs):
         # only auto-provision django user if registered as interactive user
         try:
-            username = kwargs['username']
+            username = kwargs["username"]
             i_user = InteractiveUser.objects.get(
-                login_name=username,
-                *filter_validity())
+                login_name=username, *filter_validity()
+            )
         except InteractiveUser.DoesNotExist:
             raise PermissionDenied
         user = self._create_core_user(**kwargs)
         user.i_user = i_user
         user.save()
         if core.auto_provisioning_user_group:
-            group = Group.objects.get(
-                name=core.auto_provisioning_user_group)
+            group = Group.objects.get(name=core.auto_provisioning_user_group)
             user_group = UserGroup(user=user, group=group)
             user_group.save()
         return user, True
@@ -235,9 +239,11 @@ class UserManager(BaseUserManager):
 
 class TechnicalUser(AbstractBaseUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    username = models.CharField(max_length=CoreConfig.user_username_and_code_length_limit, unique=True)
+    username = models.CharField(
+        max_length=CoreConfig.user_username_and_code_length_limit, unique=True
+    )
     email = models.EmailField(blank=True, null=True)
-    language = 'en'
+    language = "en"
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
     validity_from = models.DateTimeField(blank=True, null=True)
@@ -247,8 +253,8 @@ class TechnicalUser(AbstractBaseUser):
     def id_for_audit(self):
         return -1
 
-    USERNAME_FIELD = 'username'
-    REQUIRED_FIELDS = ['password']
+    USERNAME_FIELD = "username"
+    REQUIRED_FIELDS = ["password"]
 
     def _bind_User(self):
         save_required = False
@@ -270,19 +276,21 @@ class TechnicalUser(AbstractBaseUser):
 
     class Meta:
         managed = True
-        db_table = 'core_TechnicalUser'
+        db_table = "core_TechnicalUser"
 
 
 class Role(VersionedModel):
-    id = models.AutoField(db_column='RoleID', primary_key=True)
-    uuid = models.CharField(db_column='RoleUUID', max_length=36, default=uuid.uuid4, unique=True)
-    name = models.CharField(db_column='RoleName', max_length=50)
+    id = models.AutoField(db_column="RoleID", primary_key=True)
+    uuid = models.CharField(
+        db_column="RoleUUID", max_length=36, default=uuid.uuid4, unique=True
+    )
+    name = models.CharField(db_column="RoleName", max_length=50)
     alt_language = models.CharField(
-        db_column='AltLanguage', max_length=50, blank=True, null=True)
-    is_system = models.IntegerField(db_column='IsSystem')
-    is_blocked = models.BooleanField(db_column='IsBlocked')
-    audit_user_id = models.IntegerField(
-        db_column='AuditUserID', blank=True, null=True)
+        db_column="AltLanguage", max_length=50, blank=True, null=True
+    )
+    is_system = models.IntegerField(db_column="IsSystem")
+    is_blocked = models.BooleanField(db_column="IsBlocked")
+    audit_user_id = models.IntegerField(db_column="AuditUserID", blank=True, null=True)
 
     @classmethod
     def get_queryset(cls, queryset, user):
@@ -296,16 +304,16 @@ class Role(VersionedModel):
 
     class Meta:
         managed = True
-        db_table = 'tblRole'
+        db_table = "tblRole"
 
 
 class RoleRight(VersionedModel):
-    id = models.AutoField(db_column='RoleRightID', primary_key=True)
-    role = models.ForeignKey(Role, models.DO_NOTHING,
-                             db_column='RoleID', related_name="rights")
-    right_id = models.IntegerField(db_column='RightID')
-    audit_user_id = models.IntegerField(
-        db_column='AuditUserId', blank=True, null=True)
+    id = models.AutoField(db_column="RoleRightID", primary_key=True)
+    role = models.ForeignKey(
+        Role, models.DO_NOTHING, db_column="RoleID", related_name="rights"
+    )
+    right_id = models.IntegerField(db_column="RightID")
+    audit_user_id = models.IntegerField(db_column="AuditUserId", blank=True, null=True)
 
     @classmethod
     def get_queryset(cls, queryset, user):
@@ -319,17 +327,21 @@ class RoleRight(VersionedModel):
 
     class Meta:
         managed = True
-        db_table = 'tblRoleRight'
+        db_table = "tblRoleRight"
 
 
 class InteractiveUser(VersionedModel):
     id = models.AutoField(db_column="UserID", primary_key=True)
-    uuid = models.CharField(db_column="UserUUID", max_length=36, default=uuid.uuid4, unique=True)
+    uuid = models.CharField(
+        db_column="UserUUID", max_length=36, default=uuid.uuid4, unique=True
+    )
     language = models.ForeignKey(Language, models.DO_NOTHING, db_column="LanguageID")
     last_name = models.CharField(db_column="LastName", max_length=100)
     other_names = models.CharField(db_column="OtherNames", max_length=100)
     phone = models.CharField(db_column="Phone", max_length=50, blank=True, null=True)
-    login_name = models.CharField(db_column="LoginName", max_length=CoreConfig.user_username_and_code_length_limit)
+    login_name = models.CharField(
+        db_column="LoginName", max_length=CoreConfig.user_username_and_code_length_limit
+    )
     last_login = models.DateTimeField(db_column="LastLogin", null=True)
     health_facility_id = models.IntegerField(db_column="HFID", blank=True, null=True)
 
@@ -340,7 +352,9 @@ class InteractiveUser(VersionedModel):
     email = models.CharField(db_column="EmailId", max_length=200, blank=True, null=True)
     is_verified = models.BooleanField(default=False)
     is_fosa_emp = models.BooleanField(db_column="IsFosaEmp", default=False)
-    fosa_emp_permissions = models.CharField(db_column="FosaEmpPermissions", max_length=255, null=True)
+    fosa_emp_permissions = models.CharField(
+        db_column="FosaEmpPermissions", max_length=255, null=True
+    )
     private_key = models.CharField(
         db_column="PrivateKey",
         max_length=256,
@@ -415,9 +429,17 @@ class InteractiveUser(VersionedModel):
 
     @cached_property
     def rights(self):
-        return [rr.right_id for rr in RoleRight.filter_queryset().filter(
-            role_id__in=[r.role_id for r in UserRole.filter_queryset().filter(
-                user_id=self.id)]).distinct()]
+        return [
+            rr.right_id
+            for rr in RoleRight.filter_queryset()
+            .filter(
+                role_id__in=[
+                    r.role_id
+                    for r in UserRole.filter_queryset().filter(user_id=self.id)
+                ]
+            )
+            .distinct()
+        ]
 
     @cached_property
     def rights_str(self):
@@ -434,16 +456,19 @@ class InteractiveUser(VersionedModel):
     @property
     def is_officer(self):
         return Officer.objects.filter(
-            code=self.username, has_login=True, validity_to__isnull=True).exists()
+            code=self.username, has_login=True, validity_to__isnull=True
+        ).exists()
 
     @property
     def is_claim_admin(self):
         # Unlike Officer ClaimAdmin model was moved to the claim module,
         # and it's not granted that the module is installed.
-        if 'claim' in sys.modules:
+        if "claim" in sys.modules:
             from claim.models import ClaimAdmin
+
             return ClaimAdmin.objects.filter(
-                code=self.username, has_login=True, validity_to__isnull=True).exists()
+                code=self.username, has_login=True, validity_to__isnull=True
+            ).exists()
         else:
             return False
 
@@ -491,45 +516,69 @@ class InteractiveUser(VersionedModel):
 
     class Meta:
         managed = True
-        db_table = 'tblUsers'
+        db_table = "tblUsers"
 
 
 class UserRole(VersionedModel):
-    id = models.AutoField(db_column='UserRoleID', primary_key=True)
+    id = models.AutoField(db_column="UserRoleID", primary_key=True)
     user = models.ForeignKey(
-        InteractiveUser, models.DO_NOTHING, db_column='UserID', related_name="user_roles")
-    role = models.ForeignKey(Role, models.DO_NOTHING,
-                             db_column='RoleID', related_name="user_roles")
-    audit_user_id = models.IntegerField(
-        db_column='AudituserID', blank=True, null=True)
+        InteractiveUser,
+        models.DO_NOTHING,
+        db_column="UserID",
+        related_name="user_roles",
+    )
+    role = models.ForeignKey(
+        Role, models.DO_NOTHING, db_column="RoleID", related_name="user_roles"
+    )
+    audit_user_id = models.IntegerField(db_column="AudituserID", blank=True, null=True)
 
     class Meta:
         managed = True
-        db_table = 'tblUserRole'
+        db_table = "tblUserRole"
 
 
 class Station(models.Model):
-    id = models.AutoField(db_column='StationID', primary_key=True)
-    uuid = models.UUIDField(db_column='StationUUID', max_length=56, default=uuid.uuid4, unique=True)
-    name = models.CharField(db_column='Name', max_length=256, blank=True, null=True)
-    location = models.ForeignKey('location.Location', models.DO_NOTHING, db_column='LocationId', blank=True, null=True)
+    id = models.AutoField(db_column="StationID", primary_key=True)
+    uuid = models.UUIDField(
+        db_column="StationUUID", max_length=56, default=uuid.uuid4, unique=True
+    )
+    name = models.CharField(db_column="Name", max_length=256, blank=True, null=True)
+    location = models.ForeignKey(
+        "location.Location",
+        models.DO_NOTHING,
+        db_column="LocationId",
+        blank=True,
+        null=True,
+    )
 
     class Meta:
         managed = True
-        db_table = 'tblStation'
+        db_table = "tblStation"
 
 
 class User(UUIDModel, PermissionsMixin):
-    username = models.CharField(unique=True, max_length=CoreConfig.user_username_and_code_length_limit)
-    t_user = models.ForeignKey(TechnicalUser, on_delete=models.CASCADE, blank=True, null=True)
-    i_user = models.ForeignKey(InteractiveUser, on_delete=models.CASCADE, blank=True, null=True)
-    officer = models.ForeignKey("Officer", on_delete=models.CASCADE, blank=True, null=True)
-    claim_admin = models.ForeignKey("claim.ClaimAdmin", on_delete=models.CASCADE, blank=True, null=True)
-    station = models.ForeignKey(Station, models.DO_NOTHING, db_column='StationId', blank=True, null=True)
-    is_portal_user = models.BooleanField(db_column='IsPortalUser', default=False)
-    is_fosa_user = models.BooleanField(db_column='IsFosaUser', default=False)
+    username = models.CharField(
+        unique=True, max_length=CoreConfig.user_username_and_code_length_limit
+    )
+    t_user = models.ForeignKey(
+        TechnicalUser, on_delete=models.CASCADE, blank=True, null=True
+    )
+    i_user = models.ForeignKey(
+        InteractiveUser, on_delete=models.CASCADE, blank=True, null=True
+    )
+    officer = models.ForeignKey(
+        "Officer", on_delete=models.CASCADE, blank=True, null=True
+    )
+    claim_admin = models.ForeignKey(
+        "claim.ClaimAdmin", on_delete=models.CASCADE, blank=True, null=True
+    )
+    station = models.ForeignKey(
+        Station, models.DO_NOTHING, db_column="StationId", blank=True, null=True
+    )
+    is_portal_user = models.BooleanField(db_column="IsPortalUser", default=False)
+    is_fosa_user = models.BooleanField(db_column="IsFosaUser", default=False)
 
-    USERNAME_FIELD = 'username'
+    USERNAME_FIELD = "username"
     REQUIRED_FIELDS = []
 
     objects = UserManager()
@@ -573,6 +622,7 @@ class User(UUIDModel, PermissionsMixin):
         if self._u.validity_from is None and self._u.validity_to is None:
             return True
         from core import datetime
+
         now = datetime.datetime.now()
         if not self._u.validity_from is None and self._u.validity_from > now:
             return False
@@ -619,11 +669,11 @@ class User(UUIDModel, PermissionsMixin):
         return self.get_health_facility()
 
     def __getattr__(self, name):
-        if name == '_u':
-            raise ValueError('wrapper has not been initialised')
-        if name == '__name__':
+        if name == "_u":
+            raise ValueError("wrapper has not been initialised")
+        if name == "__name__":
             return self.username
-        if name == 'get_session_auth_hash':
+        if name == "get_session_auth_hash":
             return False
         return getattr(self._u, name)
 
@@ -638,15 +688,15 @@ class User(UUIDModel, PermissionsMixin):
 
     def __str__(self):
         if self.i_user:
-            utype = 'i'
+            utype = "i"
         elif self.t_user:
-            utype = 't'
+            utype = "t"
         elif self.officer:
-            utype = 'o'
+            utype = "o"
         elif self.claim_admin:
-            utype = 'c'
+            utype = "c"
         else:
-            utype = '?'
+            utype = "?"
         return "(%s) %s [%s]" % (utype, self.username, self.id)
 
     def save(self, *args, **kwargs):
@@ -655,7 +705,7 @@ class User(UUIDModel, PermissionsMixin):
         super().save(*args, **kwargs)
 
     def shallow_save(self, *args, **kwargs):
-        """ Unlike save(), shallow_save() won't attempt to save the subobjects, useful to avoid infinite recursion """
+        """Unlike save(), shallow_save() won't attempt to save the subobjects, useful to avoid infinite recursion"""
         super().save(*args, **kwargs)
 
     @classmethod
@@ -670,7 +720,7 @@ class User(UUIDModel, PermissionsMixin):
 
     class Meta:
         managed = True
-        db_table = 'core_User'
+        db_table = "core_User"
 
 
 class UserGroup(models.Model):
@@ -679,36 +729,62 @@ class UserGroup(models.Model):
 
     class Meta:
         managed = True
-        db_table = 'Core_User_groups'
-        unique_together = (('user', 'group'),)
+        db_table = "Core_User_groups"
+        unique_together = (("user", "group"),)
 
 
 class Officer(VersionedModel, ExtendableModel):
-    id = models.AutoField(db_column='OfficerID', primary_key=True)
-    uuid = models.CharField(db_column='OfficerUUID',
-                            max_length=36, default=uuid.uuid4, unique=True)
-    code = models.CharField(db_column='Code', max_length=CoreConfig.user_username_and_code_length_limit)
-    last_name = models.CharField(db_column='LastName', max_length=100)
-    other_names = models.CharField(db_column='OtherNames', max_length=100)
-    dob = models.DateField(db_column='DOB', blank=True, null=True)
-    phone = models.CharField(db_column='Phone', max_length=50, blank=True, null=True)
-    location = models.ForeignKey('location.Location', models.DO_NOTHING, db_column='LocationId', blank=True, null=True)
-    substitution_officer = models.ForeignKey('self', models.DO_NOTHING, db_column='OfficerIDSubst', blank=True,
-                                             null=True)
-    works_to = models.DateTimeField(db_column='WorksTo', blank=True, null=True)
-    veo_code = models.CharField(db_column='VEOCode', max_length=CoreConfig.user_username_and_code_length_limit,
-                                blank=True, null=True)
-    veo_last_name = models.CharField(db_column='VEOLastName', max_length=100, blank=True, null=True)
-    veo_other_names = models.CharField(db_column='VEOOtherNames', max_length=100, blank=True, null=True)
-    veo_dob = models.DateField(db_column='VEODOB', blank=True, null=True)
-    veo_phone = models.CharField(db_column='VEOPhone', max_length=25, blank=True, null=True)
-    audit_user_id = models.IntegerField(db_column='AuditUserID')
+    id = models.AutoField(db_column="OfficerID", primary_key=True)
+    uuid = models.CharField(
+        db_column="OfficerUUID", max_length=36, default=uuid.uuid4, unique=True
+    )
+    code = models.CharField(
+        db_column="Code", max_length=CoreConfig.user_username_and_code_length_limit
+    )
+    last_name = models.CharField(db_column="LastName", max_length=100)
+    other_names = models.CharField(db_column="OtherNames", max_length=100)
+    dob = models.DateField(db_column="DOB", blank=True, null=True)
+    phone = models.CharField(db_column="Phone", max_length=50, blank=True, null=True)
+    location = models.ForeignKey(
+        "location.Location",
+        models.DO_NOTHING,
+        db_column="LocationId",
+        blank=True,
+        null=True,
+    )
+    substitution_officer = models.ForeignKey(
+        "self", models.DO_NOTHING, db_column="OfficerIDSubst", blank=True, null=True
+    )
+    works_to = models.DateTimeField(db_column="WorksTo", blank=True, null=True)
+    veo_code = models.CharField(
+        db_column="VEOCode",
+        max_length=CoreConfig.user_username_and_code_length_limit,
+        blank=True,
+        null=True,
+    )
+    veo_last_name = models.CharField(
+        db_column="VEOLastName", max_length=100, blank=True, null=True
+    )
+    veo_other_names = models.CharField(
+        db_column="VEOOtherNames", max_length=100, blank=True, null=True
+    )
+    veo_dob = models.DateField(db_column="VEODOB", blank=True, null=True)
+    veo_phone = models.CharField(
+        db_column="VEOPhone", max_length=25, blank=True, null=True
+    )
+    audit_user_id = models.IntegerField(db_column="AuditUserID")
     # rowid = models.TextField(db_column='RowID', blank=True, null=True)   This field type is a guess.
-    email = models.CharField(db_column='EmailId', max_length=200, blank=True, null=True)
-    phone_communication = models.BooleanField(db_column='PhoneCommunication', blank=True, null=True)
-    address = models.CharField(db_column="permanentaddress", max_length=100, blank=True, null=True)
-    has_login = models.BooleanField(db_column='HasLogin', blank=True, null=True)
-    station = models.ForeignKey(Station, models.DO_NOTHING, db_column='StationId', blank=True, null=True)
+    email = models.CharField(db_column="EmailId", max_length=200, blank=True, null=True)
+    phone_communication = models.BooleanField(
+        db_column="PhoneCommunication", blank=True, null=True
+    )
+    address = models.CharField(
+        db_column="permanentaddress", max_length=100, blank=True, null=True
+    )
+    has_login = models.BooleanField(db_column="HasLogin", blank=True, null=True)
+    station = models.ForeignKey(
+        Station, models.DO_NOTHING, db_column="StationId", blank=True, null=True
+    )
 
     # user = models.ForeignKey(User, db_column='UserID', blank=True, null=True, on_delete=models.CASCADE)
 
@@ -757,8 +833,8 @@ class Officer(VersionedModel, ExtendableModel):
         Returns uuid of all locations allowed for given officer
         """
         from location.models import OfficerVillage, Location
-        villages = OfficerVillage.objects \
-            .filter(officer=self, validity_to__isnull=True)
+
+        villages = OfficerVillage.objects.filter(officer=self, validity_to__isnull=True)
         all_allowed_uuids = []
         for village in villages:
             allowed_uuids = [village.location.uuid]
@@ -779,7 +855,7 @@ class Officer(VersionedModel, ExtendableModel):
 
     class Meta:
         managed = True
-        db_table = 'tblOfficer'
+        db_table = "tblOfficer"
 
 
 class MutationLog(UUIDModel):
@@ -788,6 +864,7 @@ class MutationLog(UUIDModel):
     immediately to the client and have longer processing in the various backend modules.
     The ID of this table will be used for reference.
     """
+
     RECEIVED = 0
     ERROR = 1
     SUCCESS = 2
@@ -800,10 +877,8 @@ class MutationLog(UUIDModel):
     json_content = models.TextField()
     user = models.ForeignKey(User, on_delete=DO_NOTHING, blank=True, null=True)
     request_date_time = models.DateTimeField(auto_now_add=True)
-    client_mutation_id = models.CharField(
-        max_length=255, blank=True, null=True)
-    client_mutation_label = models.CharField(
-        max_length=255, blank=True, null=True)
+    client_mutation_id = models.CharField(max_length=255, blank=True, null=True)
+    client_mutation_label = models.CharField(max_length=255, blank=True, null=True)
     client_mutation_details = models.TextField(blank=True, null=True)
     status = models.IntegerField(choices=STATUS_CHOICES, default=RECEIVED)
     error = models.TextField(blank=True, null=True)
@@ -818,8 +893,11 @@ class MutationLog(UUIDModel):
         method will only set the mutation_log as successful if it is in RECEIVED status.
         :return True if the status was updated, False if it was in ERROR or already in SUCCESS status
         """
-        affected_rows = MutationLog.objects.filter(id=self.id) \
-            .filter(status=MutationLog.RECEIVED).update(status=MutationLog.SUCCESS)
+        affected_rows = (
+            MutationLog.objects.filter(id=self.id)
+            .filter(status=MutationLog.RECEIVED)
+            .update(status=MutationLog.SUCCESS)
+        )
         self.refresh_from_db()
         return affected_rows > 0
 
@@ -828,8 +906,9 @@ class MutationLog(UUIDModel):
         Do not alter the mutation_log and then save it as it might override changes from another process.
         This method will force the status to ERROR and set its error accordingly.
         """
-        MutationLog.objects.filter(id=self.id) \
-            .update(status=MutationLog.ERROR, error=error)
+        MutationLog.objects.filter(id=self.id).update(
+            status=MutationLog.ERROR, error=error
+        )
         self.refresh_from_db()
 
 
@@ -858,34 +937,50 @@ class ObjectMutation:
     """
 
     @classmethod
-    def object_mutated(cls, user, mutation_log_id=None, client_mutation_id=None, *args, **kwargs):
+    def object_mutated(
+        cls, user, mutation_log_id=None, client_mutation_id=None, *args, **kwargs
+    ):
         # This method should fail silently to not disrupt the actual mutation
         # noinspection PyBroadException
         try:
-            args_models = {k + "_id": v.id for k, v in kwargs.items() if isinstance(v, models.Model)}
+            args_models = {
+                k + "_id": v.id
+                for k, v in kwargs.items()
+                if isinstance(v, models.Model)
+            }
             if len(args_models) == 0 or len(args_models) > 1:
-                logger.error("Trying to update ObjectMutationLink with several models in params: %s",
-                             ", ".join(args_models.keys()))
+                logger.error(
+                    "Trying to update ObjectMutationLink with several models in params: %s",
+                    ", ".join(args_models.keys()),
+                )
                 return
             if mutation_log_id:
                 cls.objects.get_or_create(mutation_id=mutation_log_id, **args_models)
             elif client_mutation_id:
-                mutations = MutationLog.objects \
-                                .filter(client_mutation_id=client_mutation_id) \
-                                .filter(user=user) \
-                                .values_list("id", flat=True) \
-                                .order_by("-request_date_time")[:2]  # Only ask for 2 for the warning, we'll only use 1
+                mutations = (
+                    MutationLog.objects.filter(client_mutation_id=client_mutation_id)
+                    .filter(user=user)
+                    .values_list("id", flat=True)
+                    .order_by("-request_date_time")[:2]
+                )  # Only ask for 2 for the warning, we'll only use 1
                 if len(mutations) == 2:
                     # Warning because if done too often, this would cause performance issues in this query
-                    logger.warning("Two or more mutations found for id %s, using the most recent one",
-                                   client_mutation_id)
+                    logger.warning(
+                        "Two or more mutations found for id %s, using the most recent one",
+                        client_mutation_id,
+                    )
                 if len(mutations) == 0:
-                    logger.debug("No mutation found for client_mutation_id %s, ignoring", client_mutation_id)
+                    logger.debug(
+                        "No mutation found for client_mutation_id %s, ignoring",
+                        client_mutation_id,
+                    )
                     return
                 cls.objects.get_or_create(mutation_id=mutations[0], **args_models)
             else:
                 logger.warning(
-                    "Trying to update a %s without either mutation id or client_mutation_id, ignoring", cls.__name__)
+                    "Trying to update a %s without either mutation id or client_mutation_id, ignoring",
+                    cls.__name__,
+                )
         except Exception as exc:
             # The mutation shouldn't fail because we couldn't store the UUID
             logger.error("Error updating the %s object", cls.__name__, exc_info=True)
@@ -893,24 +988,36 @@ class ObjectMutation:
 
 class HistoryModelManager(models.Manager):
     """
-        Custom manager that allows querying HistoryModel by uuid
+    Custom manager that allows querying HistoryModel by uuid
     """
 
     def get_queryset(self):
-        return super().get_queryset().annotate(uuid=F('id'))
+        return super().get_queryset().annotate(uuid=F("id"))
 
 
 class HistoryModel(DirtyFieldsMixin, models.Model):
-    id = models.UUIDField(primary_key=True, db_column="UUID", default=None, editable=False)
+    id = models.UUIDField(
+        primary_key=True, db_column="UUID", default=None, editable=False
+    )
     objects = HistoryModelManager()
     is_deleted = models.BooleanField(db_column="isDeleted", default=False)
     json_ext = models.JSONField(db_column="Json_ext", blank=True, null=True)
     date_created = DateTimeField(db_column="DateCreated", null=True)
     date_updated = DateTimeField(db_column="DateUpdated", null=True)
-    user_created = models.ForeignKey(User, db_column="UserCreatedUUID", related_name='%(class)s_user_created',
-                                     on_delete=models.deletion.DO_NOTHING, null=False)
-    user_updated = models.ForeignKey(User, db_column="UserUpdatedUUID", related_name='%(class)s_user_updated',
-                                     on_delete=models.deletion.DO_NOTHING, null=False)
+    user_created = models.ForeignKey(
+        User,
+        db_column="UserCreatedUUID",
+        related_name="%(class)s_user_created",
+        on_delete=models.deletion.DO_NOTHING,
+        null=False,
+    )
+    user_updated = models.ForeignKey(
+        User,
+        db_column="UserUpdatedUUID",
+        related_name="%(class)s_user_updated",
+        on_delete=models.deletion.DO_NOTHING,
+        null=False,
+    )
     version = models.IntegerField(default=1)
     history = HistoricalRecords(
         inherit=True,
@@ -932,11 +1039,14 @@ class HistoryModel(DirtyFieldsMixin, models.Model):
 
     def save(self, *args, **kwargs):
         # get the user data so as to assign later his uuid id in fields user_updated etc
-        if 'username' in kwargs:
-            user = User.objects.get(username=kwargs.pop('username'))
+        if "username" in kwargs:
+            user = User.objects.get(username=kwargs.pop("username"))
         else:
-            raise ValidationError('Save error! Provide the username of the current user in `username` argument')
+            raise ValidationError(
+                "Save error! Provide the username of the current user in `username` argument"
+            )
         from core import datetime
+
         now = datetime.datetime.now()
         # check if object has been newly created
         if self.id is None:
@@ -953,22 +1063,32 @@ class HistoryModel(DirtyFieldsMixin, models.Model):
             self.version = self.version + 1
             # check if we have business model
             if hasattr(self, "replacement_uuid"):
-                if self.replacement_uuid is not None and 'replacement_uuid' not in self.get_dirty_fields():
-                    raise ValidationError('Update error! You cannot update replaced entity')
+                if (
+                    self.replacement_uuid is not None
+                    and "replacement_uuid" not in self.get_dirty_fields()
+                ):
+                    raise ValidationError(
+                        "Update error! You cannot update replaced entity"
+                    )
             return super(HistoryModel, self).save(*args, **kwargs)
         else:
-            raise ValidationError('Record has not be updated - there are no changes in fields')
+            raise ValidationError(
+                "Record has not be updated - there are no changes in fields"
+            )
 
     def delete_history(self):
         pass
 
     def delete(self, *args, **kwargs):
-        if 'username' in kwargs:
-            user = User.objects.get(username=kwargs.pop('username'))
+        if "username" in kwargs:
+            user = User.objects.get(username=kwargs.pop("username"))
         else:
-            raise ValidationError('Delete error! Provide the username of the current user in `username` argument')
+            raise ValidationError(
+                "Delete error! Provide the username of the current user in `username` argument"
+            )
         if not self.is_dirty(check_relationship=True) and not self.is_deleted:
             from core import datetime
+
             now = datetime.datetime.now()
             self.date_updated = now
             self.user_updated = user
@@ -978,14 +1098,17 @@ class HistoryModel(DirtyFieldsMixin, models.Model):
             if hasattr(self, "replacement_uuid"):
                 # When a replacement entity is deleted, the link should be removed
                 # from replaced entity so a new replacement could be generated
-                replaced_entity = self.__class__.objects.filter(replacement_uuid=self.id).first()
+                replaced_entity = self.__class__.objects.filter(
+                    replacement_uuid=self.id
+                ).first()
                 if replaced_entity:
                     replaced_entity.replacement_uuid = None
                     replaced_entity.save(username="admin")
             return super(HistoryModel, self).save(*args, **kwargs)
         else:
             raise ValidationError(
-                'Record has not be deactivating, the object is different and must be updated before deactivating')
+                "Record has not be deactivating, the object is different and must be updated before deactivating"
+            )
 
     @classmethod
     def filter_queryset(cls, queryset=None):
@@ -1011,12 +1134,16 @@ class HistoryBusinessModel(HistoryModel):
         # 1 step - create new entity
         new_entity = self._create_new_entity(user=user, data=data)
         # 2 step - update the fields for the entity to be replaced
-        self._update_replaced_entity(user=user, uuid_from_new_entity=new_entity.id,
-                                     date_valid_from_new_entity=new_entity.date_valid_from)
+        self._update_replaced_entity(
+            user=user,
+            uuid_from_new_entity=new_entity.id,
+            date_valid_from_new_entity=new_entity.date_valid_from,
+        )
 
     def _create_new_entity(self, user, data):
         """1 step - create new entity"""
         from core import datetime
+
         now = datetime.datetime.now()
         new_entity = copy(self)
         new_entity.id = None
@@ -1026,22 +1153,24 @@ class HistoryBusinessModel(HistoryModel):
         new_entity.replacement_uuid = None
         # replace the fiedls if there are any to update in new entity
         if "uuid" in data:
-            data.pop('uuid')
+            data.pop("uuid")
         if len(data) > 0:
             [setattr(new_entity, key, data[key]) for key in data]
         if self.date_valid_from is None:
-            raise ValidationError('Field date_valid_from should not be empty')
+            raise ValidationError("Field date_valid_from should not be empty")
         new_entity.save(username=user.username)
         return new_entity
 
-    def _update_replaced_entity(self, user, uuid_from_new_entity, date_valid_from_new_entity):
+    def _update_replaced_entity(
+        self, user, uuid_from_new_entity, date_valid_from_new_entity
+    ):
         """2 step - update the fields for the entity to be replaced"""
         # convert to datetime if the date_valid_from from new entity is date
         from core import datetime
+
         if not isinstance(date_valid_from_new_entity, datetime.datetime):
             date_valid_from_new_entity = datetime.datetime.combine(
-                date_valid_from_new_entity,
-                datetime.datetime.min.time()
+                date_valid_from_new_entity, datetime.datetime.min.time()
             )
         if not self.is_dirty(check_relationship=True):
             if self.date_valid_to is not None:
@@ -1053,17 +1182,17 @@ class HistoryBusinessModel(HistoryModel):
             self.save(username=user.username)
             return self
         else:
-            raise ValidationError("Object is changed - it must be updated before being replaced")
+            raise ValidationError(
+                "Object is changed - it must be updated before being replaced"
+            )
 
     class Meta:
         abstract = True
 
 
 class RoleMutation(UUIDModel, ObjectMutation):
-    role = models.ForeignKey(Role, models.DO_NOTHING,
-                             related_name='mutations')
-    mutation = models.ForeignKey(
-        MutationLog, models.DO_NOTHING, related_name='roles')
+    role = models.ForeignKey(Role, models.DO_NOTHING, related_name="mutations")
+    mutation = models.ForeignKey(MutationLog, models.DO_NOTHING, related_name="roles")
 
     class Meta:
         managed = True
@@ -1071,8 +1200,8 @@ class RoleMutation(UUIDModel, ObjectMutation):
 
 
 class UserMutation(UUIDModel, ObjectMutation):
-    core_user = models.ForeignKey(User, models.CASCADE, related_name='mutations')
-    mutation = models.ForeignKey(MutationLog, models.DO_NOTHING, related_name='users')
+    core_user = models.ForeignKey(User, models.CASCADE, related_name="mutations")
+    mutation = models.ForeignKey(MutationLog, models.DO_NOTHING, related_name="users")
 
     class Meta:
         managed = True
@@ -1085,7 +1214,7 @@ def _get_default_expire_date():
 
 def _query_export_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
-    return F'query_exports/user_{instance.user.uuid}/{filename}'
+    return f"query_exports/user_{instance.user.uuid}/{filename}"
 
 
 class ExportableQueryModel(models.Model):
@@ -1094,17 +1223,22 @@ class ExportableQueryModel(models.Model):
     content = models.FileField(upload_to=_query_export_path)
 
     user = models.ForeignKey(
-        User, db_column="User", related_name='data_exports',
-        on_delete=models.deletion.DO_NOTHING, null=False)
+        User,
+        db_column="User",
+        related_name="data_exports",
+        on_delete=models.deletion.DO_NOTHING,
+        null=False,
+    )
 
     sql_query = models.TextField()
-    create_date = DateTimeField(db_column='DateCreated', default=py_datetime.now)
-    expire_date = DateTimeField(db_column='DateExpiring', default=_get_default_expire_date)
+    create_date = DateTimeField(db_column="DateCreated", default=py_datetime.now)
+    expire_date = DateTimeField(
+        db_column="DateExpiring", default=_get_default_expire_date
+    )
     is_deleted = models.BooleanField(default=False)
 
     @staticmethod
-    def create_csv_export(qs, values, user, column_names=None,
-                          patches=None):
+    def create_csv_export(qs, values, user, column_names=None, patches=None):
         if patches is None:
             patches = []
         sql = qs.query.sql_with_params()
@@ -1114,7 +1248,7 @@ class ExportableQueryModel(models.Model):
             content = patch(content)
 
         content.columns = column_names or values
-        filename = F"{uuid.uuid4()}.csv"
+        filename = f"{uuid.uuid4()}.csv"
         content = ContentFile(content.to_csv(), filename)
         export = ExportableQueryModel(
             name=filename,
@@ -1138,17 +1272,23 @@ class GenericConfig(UUIDModel, ExtendableModel):
 
 
 class AuditLogs(models.Model):
-    id = models.AutoField(db_column='ID', primary_key=True)
+    id = models.AutoField(db_column="ID", primary_key=True)
     app_name = models.CharField(db_column="AppName", max_length=256)
     model_name = models.CharField(db_column="ModelName", max_length=256)
     audit_for = models.CharField(db_column="AuditFor", max_length=256, null=True)
     action = models.CharField(db_column="Action", max_length=256)
-    new_obj_id = models.CharField(db_column="NewObjID", max_length=256, blank=True, null=True)
-    old_obj_id = models.CharField(db_column="OldObjID", max_length=256, blank=True, null=True)
+    new_obj_id = models.CharField(
+        db_column="NewObjID", max_length=256, blank=True, null=True
+    )
+    old_obj_id = models.CharField(
+        db_column="OldObjID", max_length=256, blank=True, null=True
+    )
     changes = models.JSONField(db_column="Changes", blank=True, null=True)
     audit_by_id = models.CharField(db_column="AuditByID", max_length=256)
-    created_time = models.DateTimeField(db_column='CreatedTime', auto_now_add=True, null=True)
-    json_ext = JSONField(db_column='JsonExt', blank=True, null=True)
+    created_time = models.DateTimeField(
+        db_column="CreatedTime", auto_now_add=True, null=True
+    )
+    json_ext = JSONField(db_column="JsonExt", blank=True, null=True)
 
     class Meta:
         managed = True
@@ -1156,14 +1296,23 @@ class AuditLogs(models.Model):
 
 
 class CamuNotification(models.Model):
-    title = models.CharField(max_length=255, db_column='Title', null=True, blank=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, db_column='UserId', related_name='camu_notifications')
-    module = models.CharField(max_length=50, db_column='Module', null=True, blank=True)
-    message = models.JSONField(db_column='Message', null=True)
-    is_read = models.BooleanField(default=False, db_column='IsRead')
-    created_at = models.DateTimeField(auto_now_add=True, db_column='Created At')
-    redirect_url = models.CharField(max_length=255, db_column='RedirectURL', null=True, blank=True)
-    portal_redirect_url = models.CharField(max_length=255, db_column='PortalRedirectURL', null=True, blank=True)
+    title = models.CharField(max_length=255, db_column="Title", null=True, blank=True)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        db_column="UserId",
+        related_name="camu_notifications",
+    )
+    module = models.CharField(max_length=50, db_column="Module", null=True, blank=True)
+    message = models.JSONField(db_column="Message", null=True)
+    is_read = models.BooleanField(default=False, db_column="IsRead")
+    created_at = models.DateTimeField(auto_now_add=True, db_column="Created At")
+    redirect_url = models.CharField(
+        max_length=255, db_column="RedirectURL", null=True, blank=True
+    )
+    portal_redirect_url = models.CharField(
+        max_length=255, db_column="PortalRedirectURL", null=True, blank=True
+    )
 
     class Meta:
         managed = True
@@ -1181,43 +1330,93 @@ class ErpApiFailedLogs(models.Model):
     from contract.models import Contract
     from policyholder.models import PolicyHolder
     from claim.models import Claim
-    id = models.AutoField(db_column='ID', primary_key=True)
-    module = models.CharField(max_length=50, db_column='Module', null=True)
-    policy_holder = models.ForeignKey(PolicyHolder, db_column="PolicyHolder",
-                                      on_delete=models.deletion.DO_NOTHING, related_name="policyholder_erp_logs",
-                                      null=True)
-    claim = models.ForeignKey(Claim, on_delete=models.DO_NOTHING,
-                              db_column='Claim', related_name='claim_erp_logs', null=True)
-    contract = models.ForeignKey(Contract, on_delete=models.deletion.DO_NOTHING, db_column="Contract",
-                                 related_name="contract_erp_logs", null=True)
-    health_facility = models.ForeignKey(HealthFacility, on_delete=models.DO_NOTHING, related_name="hf_erp_logs",
-                                        db_column='HealthFacility', null=True)
-    payment_penalty = models.ForeignKey(PaymentPenaltyAndSanction, on_delete=models.DO_NOTHING,
-                                        related_name="penalty_erp_logs",
-                                        db_column="Penalty", null=True)
-    payment = models.ForeignKey(Payment, on_delete=models.DO_NOTHING, db_column='Payment',
-                                related_name="payment_erp_logs", null=True)
-    service = models.ForeignKey(Service, on_delete=models.DO_NOTHING, db_column='Service',
-                                related_name="service_erp_logs", null=True)
-    item = models.ForeignKey(Item, on_delete=models.DO_NOTHING, db_column='Item', related_name="item_erp_logs",
-                             null=True)
-    parent = models.ForeignKey('self', on_delete=models.deletion.DO_NOTHING, db_column="Parent",
-                               related_name='parent_erp_logs', null=True)
-    action = models.CharField(max_length=50, db_column='Action', null=True)
-    response_status_code = models.IntegerField(
-        db_column='ResponseCode', null=True)
-    response_json = JSONField(
-        db_column='ResponseJson', null=True)
-    request_url = models.CharField(max_length=500, db_column='RequestURL', null=True)
-    message = models.TextField(db_column='Message', null=True)
-    request_data = JSONField(
-        db_column='ProvidedData', null=True)
-    created_at = models.DateTimeField(auto_now_add=True, db_column='CreatedAt', null=True)
-    created_by = models.ForeignKey(User, on_delete=models.DO_NOTHING, db_column='CreatedBy', null=True)
-    resync_status = models.IntegerField(db_column='ResyncStatus', null=True)
-    resync_at = models.DateTimeField(db_column='ResyncAt', null=True)
-    resync_by = models.ForeignKey(User, on_delete=models.DO_NOTHING, db_column='ResyncBy', related_name='erp_resync_by',
-                                  null=True)
+
+    id = models.AutoField(db_column="ID", primary_key=True)
+    module = models.CharField(max_length=50, db_column="Module", null=True)
+    policy_holder = models.ForeignKey(
+        PolicyHolder,
+        db_column="PolicyHolder",
+        on_delete=models.deletion.DO_NOTHING,
+        related_name="policyholder_erp_logs",
+        null=True,
+    )
+    claim = models.ForeignKey(
+        Claim,
+        on_delete=models.DO_NOTHING,
+        db_column="Claim",
+        related_name="claim_erp_logs",
+        null=True,
+    )
+    contract = models.ForeignKey(
+        Contract,
+        on_delete=models.deletion.DO_NOTHING,
+        db_column="Contract",
+        related_name="contract_erp_logs",
+        null=True,
+    )
+    health_facility = models.ForeignKey(
+        HealthFacility,
+        on_delete=models.DO_NOTHING,
+        related_name="hf_erp_logs",
+        db_column="HealthFacility",
+        null=True,
+    )
+    payment_penalty = models.ForeignKey(
+        PaymentPenaltyAndSanction,
+        on_delete=models.DO_NOTHING,
+        related_name="penalty_erp_logs",
+        db_column="Penalty",
+        null=True,
+    )
+    payment = models.ForeignKey(
+        Payment,
+        on_delete=models.DO_NOTHING,
+        db_column="Payment",
+        related_name="payment_erp_logs",
+        null=True,
+    )
+    service = models.ForeignKey(
+        Service,
+        on_delete=models.DO_NOTHING,
+        db_column="Service",
+        related_name="service_erp_logs",
+        null=True,
+    )
+    item = models.ForeignKey(
+        Item,
+        on_delete=models.DO_NOTHING,
+        db_column="Item",
+        related_name="item_erp_logs",
+        null=True,
+    )
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.deletion.DO_NOTHING,
+        db_column="Parent",
+        related_name="parent_erp_logs",
+        null=True,
+    )
+    action = models.CharField(max_length=50, db_column="Action", null=True)
+    response_status_code = models.IntegerField(db_column="ResponseCode", null=True)
+    response_json = JSONField(db_column="ResponseJson", null=True)
+    request_url = models.CharField(max_length=500, db_column="RequestURL", null=True)
+    message = models.TextField(db_column="Message", null=True)
+    request_data = JSONField(db_column="ProvidedData", null=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True, db_column="CreatedAt", null=True
+    )
+    created_by = models.ForeignKey(
+        User, on_delete=models.DO_NOTHING, db_column="CreatedBy", null=True
+    )
+    resync_status = models.IntegerField(db_column="ResyncStatus", null=True)
+    resync_at = models.DateTimeField(db_column="ResyncAt", null=True)
+    resync_by = models.ForeignKey(
+        User,
+        on_delete=models.DO_NOTHING,
+        db_column="ResyncBy",
+        related_name="erp_resync_by",
+        null=True,
+    )
 
     class Meta:
         managed = True
@@ -1225,13 +1424,13 @@ class ErpApiFailedLogs(models.Model):
 
 
 class ErpOperations(HistoryModel):
-    name = models.CharField(max_length=255, db_column='Name', null=True)
-    alt_lang_name = models.CharField(max_length=255, db_column='AltLangName', null=True)
-    code = models.CharField(max_length=255, db_column='Code', null=True)
-    erp_id = models.IntegerField(db_column='ERPID', null=True)
-    access_id = models.CharField(max_length=255, db_column='AccessID', null=True)
-    accounting_id = models.IntegerField(db_column='AccountingID', null=True)
-    is_default = models.BooleanField(db_column='IsDefault', default=False)
+    name = models.CharField(max_length=255, db_column="Name", null=True)
+    alt_lang_name = models.CharField(max_length=255, db_column="AltLangName", null=True)
+    code = models.CharField(max_length=255, db_column="Code", null=True)
+    erp_id = models.IntegerField(db_column="ERPID", null=True)
+    access_id = models.CharField(max_length=255, db_column="AccessID", null=True)
+    accounting_id = models.IntegerField(db_column="AccountingID", null=True)
+    is_default = models.BooleanField(db_column="IsDefault", default=False)
 
     class Meta:
         managed = True
@@ -1239,12 +1438,12 @@ class ErpOperations(HistoryModel):
 
 
 class Banks(HistoryModel):
-    name = models.CharField(max_length=255, db_column='Name', null=True)
-    alt_lang_name = models.CharField(max_length=255, db_column='AltLangName', null=True)
-    code = models.CharField(max_length=255, db_column='Code', null=True)
-    erp_id = models.IntegerField(db_column='ERPID', null=True)
-    journaux_id = models.IntegerField(db_column='JournauxID', null=True)
-    is_default = models.BooleanField(db_column='IsDefault', default=False)
+    name = models.CharField(max_length=255, db_column="Name", null=True)
+    alt_lang_name = models.CharField(max_length=255, db_column="AltLangName", null=True)
+    code = models.CharField(max_length=255, db_column="Code", null=True)
+    erp_id = models.IntegerField(db_column="ERPID", null=True)
+    journaux_id = models.IntegerField(db_column="JournauxID", null=True)
+    is_default = models.BooleanField(db_column="IsDefault", default=False)
 
     class Meta:
         managed = True
@@ -1255,28 +1454,41 @@ class ScheduledTask(models.Model):
     task_name = models.CharField(max_length=255)
     task_path = models.CharField(max_length=255)
     run_at = models.DateTimeField()  # This could store the first run date or next run
-    frequency = models.CharField(max_length=50, choices=[('monthly', 'Monthly'), ('weekly', 'Weekly'), ('daily', 'Daily')])
-    day_of_month = models.PositiveIntegerField(null=True, blank=True)  # For monthly tasks (1-31)
-    day_of_week = models.PositiveIntegerField(null=True, blank=True)   # For weekly tasks (0=Sunday, 6=Saturday)
-    hour_of_day = models.PositiveIntegerField(null=True, blank=True)   # 24-hour format, when the task should run
+    frequency = models.CharField(
+        max_length=50,
+        choices=[("monthly", "Monthly"), ("weekly", "Weekly"), ("daily", "Daily")],
+    )
+    day_of_month = models.PositiveIntegerField(
+        null=True, blank=True
+    )  # For monthly tasks (1-31)
+    day_of_week = models.PositiveIntegerField(
+        null=True, blank=True
+    )  # For weekly tasks (0=Sunday, 6=Saturday)
+    hour_of_day = models.PositiveIntegerField(
+        null=True, blank=True
+    )  # 24-hour format, when the task should run
     module = models.CharField(max_length=255, null=True)
     reference = models.CharField(max_length=255, null=True)
     is_completed = models.BooleanField(default=False)
 
     def __str__(self):
         return self.task_name
-    
+
     class Meta:
         managed = True
         db_table = "tblScheduledTask"
 
 
 class CronJobLog(models.Model):
-    task = models.ForeignKey('ScheduledTask', on_delete=models.DO_NOTHING, related_name='logs')
+    task = models.ForeignKey(
+        "ScheduledTask", on_delete=models.DO_NOTHING, related_name="logs"
+    )
     executed_at = models.DateTimeField(auto_now_add=True)  # When the job was executed
-    status = models.CharField(max_length=50, choices=[('success', 'Success'), ('failed', 'Failed')])
+    status = models.CharField(
+        max_length=50, choices=[("success", "Success"), ("failed", "Failed")]
+    )
     output = models.TextField(null=True, blank=True)  # Any output from the job
-    error = models.TextField(null=True, blank=True)   # Any errors from the job
+    error = models.TextField(null=True, blank=True)  # Any errors from the job
 
     def __str__(self):
         return f"Log for {self.task.task_name} at {self.executed_at}"
@@ -1284,3 +1496,22 @@ class CronJobLog(models.Model):
     class Meta:
         managed = True
         db_table = "tblCronJobLog"
+
+
+class UserAuditLog(models.Model):
+    id = models.UUIDField(
+        primary_key=True, db_column="UUID", default=uuid.uuid4, editable=False
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.DO_NOTHING, related_name="audit_logs"
+    )
+    action = models.CharField(max_length=255, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    details = models.TextField()
+
+    def __str__(self):
+        return f"Audit log for {self.user.username} at {self.timestamp}"
+
+    class Meta:
+        managed = True
+        db_table = "tblUserAuditLog"
