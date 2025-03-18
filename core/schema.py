@@ -1558,6 +1558,7 @@ class UserBase:
     password = graphene.String(required=False)
     current_password = graphene.String(required=False)
     health_facility_id = graphene.Int(required=False)
+    policy_holder_id = graphene.String(required=False)
     districts = graphene.List(graphene.Int, required=False)
     language = graphene.String(required=True, description="Language code for the user")
     # Interactive User only
@@ -1691,6 +1692,7 @@ def update_or_create_user(data, user):
 
     # FOSA USER ACTIVE IS TRUE FOR IS_FOSA_USER AND VERIFY TRUE
     data["is_fosa_user"] = True if data.get("health_facility_id") is not None else False
+    data['is_portal_user'] = True if data.get('policy_holder_id') is not None else False
 
     incoming_email = data.get("email")
     current_user = None

@@ -24,7 +24,7 @@ from core.models import User, InteractiveUser, Officer, UserAuditLog, UserRole, 
 from core.validation.obligatoryFieldValidation import (
     validate_payload_for_obligatory_fields,
 )
-from policyholder.models import PolicyHolderUser
+from policyholder.models import PolicyHolderUser, PolicyHolder
 from policyholder.portal_utils import (
     make_portal_reset_password_link,
     new_user_welcome_email,
@@ -50,6 +50,9 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
         "language": "language_id",
         "health_facility_id": "health_facility_id",
     }
+    policy_holder_id = (
+        data.pop("policy_holder_id") if data.get("policy_holder_id") else None
+    )
     current_password = (
         data.pop("current_password") if data.get("current_password") else None
     )
@@ -106,8 +109,19 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
         created = True
 
     i_user.save()
-    
+
     if created:
+        if policy_holder_id:
+            policy_holder = PolicyHolder.objects.filter(id=policy_holder_id).first()
+
+            if not policy_holder:
+                raise ValidationError(_("mutation.policy_holder_not_found"))
+
+            PolicyHolderUser.objects.create(
+                user=i_user,
+                policy_holder_id=policy_holder_id,
+            )
+
         verification_url = None
 
         # for subscriber portal the email is sent once the policyholderUser is created
@@ -115,6 +129,8 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
 
         if data.get("is_fosa_user"):
             verification_url = f"{PORTAL_FOSA_URL}/fosa/verify-user-and-update-password?user_id={i_user.uuid}&token={token}&username={i_user.username}"
+        elif data.get("is_portal_user"):
+            verification_url = f"{PORTAL_SUBSCRIBER_URL}/portal/verify-user-and-update-password?user_id={i_user.uuid}&token={token}&username={i_user.username}"
         else:
             verification_url = f"{IMIS_URL}/front/verify-user-and-update-password?user_id={i_user.uuid}&token={token}&username={i_user.username}"
 
@@ -123,8 +139,8 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
         new_user_welcome_email(i_user, verification_url)
 
         print("=====> send new_user_welcome_email Done")
-        
-    create_audit_user_service(i_user, created, user_id, data)    
+
+    create_audit_user_service(i_user, created, user_id, data)
 
     create_or_update_user_roles(i_user, data["roles"], audit_user_id)
     if "districts" in data:
@@ -138,22 +154,28 @@ def create_audit_user_service(i_user, created, user_id, data):
     print("=====> create_audit_user_service Start")
     # Create a copy of data and convert datetime to string
     audit_data = data.copy()
-    if 'validity_from' in audit_data:
-        audit_data['validity_from'] = audit_data['validity_from'].isoformat() if audit_data['validity_from'] else None
-        
-    audit_data['user_id'] = i_user.id
+    if "validity_from" in audit_data:
+        audit_data["validity_from"] = (
+            audit_data["validity_from"].isoformat()
+            if audit_data["validity_from"]
+            else None
+        )
+
+    audit_data["user_id"] = i_user.id
 
     # convert json to text
     user = InteractiveUser.objects.filter(
-            validity_to__isnull=True, user__id=data['audit_user_id']
-        ).first()
-    
+        validity_to__isnull=True, user__id=data["audit_user_id"]
+    ).first()
+
     data = {
         "user": user,
         "details": json.dumps(audit_data),
-        "action": "Création d'un utilisateur" if created else "Modification d'un utilisateur"
-    }    
-    
+        "action": "Création d'un utilisateur"
+        if created
+        else "Modification d'un utilisateur",
+    }
+
     if user_id:
         policy_holder_user = PolicyHolderUser.objects.filter(user_id=user_id).first()
         if policy_holder_user:
@@ -165,9 +187,10 @@ def create_audit_user_service(i_user, created, user_id, data):
         ).first()
         print("=====> health_facility")
         data["fosa"] = health_facility
-        
+
     UserAuditLog.objects.create(**data)
     print("=====> UserAuditLog created")
+
 
 def create_or_update_user_roles(i_user, role_ids, audit_user_id):
     from core import datetime
