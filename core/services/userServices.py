@@ -53,6 +53,9 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
     policy_holder_id = (
         data.pop("policy_holder_id") if data.get("policy_holder_id") else None
     )
+    date_valid_from = (
+        data.pop("date_valid_from") if data.get("date_valid_from") else None
+    )
     current_password = (
         data.pop("current_password") if data.get("current_password") else None
     )
@@ -110,17 +113,41 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
 
     i_user.save()
 
-    if created:
-        if policy_holder_id:
-            policy_holder = PolicyHolder.objects.filter(id=policy_holder_id).first()
+    # i_user = InteractiveUser.objects.filter(
+    #     validity_to__isnull=True, login_name=data_subset["login_name"]
+    # ).first()
 
+    if created:
+        print("=====> created")
+        print(f"=====> policy_holder_id {policy_holder_id}")
+        if policy_holder_id:
+            print("=====> policy_holder_id")
+            policy_holder = PolicyHolder.objects.filter(id=policy_holder_id).first()
+            print("=====> policy_holder")
             if not policy_holder:
                 raise ValidationError(_("mutation.policy_holder_not_found"))
 
-            PolicyHolderUser.objects.create(
-                user=i_user,
-                policy_holder_id=policy_holder_id,
-            )
+            core_user = i_user.user
+            print(f"=====> core_user {core_user}")
+
+            if not core_user:
+                raise ValidationError(_("mutation.core_user_not_found"))
+
+            object_data = {
+                "user": core_user,
+                "policy_holder": policy_holder,
+                "date_valid_from": date_valid_from,
+            }
+
+            print(f"=====> object_data {object_data}")
+
+            info_user = InteractiveUser.objects.filter(
+                validity_to__isnull=True, user__id=data["audit_user_id"]
+            ).first()
+            print("=====> info_user")
+            obj = PolicyHolderUser(**object_data)
+            obj.save(username=info_user.username)
+            print("=====> obj")
 
         verification_url = None
 
