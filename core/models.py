@@ -1499,15 +1499,30 @@ class CronJobLog(models.Model):
 
 
 class UserAuditLog(models.Model):
+    from policyholder.models import PolicyHolder
+    from location.models import HealthFacility
+
     id = models.UUIDField(
         primary_key=True, db_column="UUID", default=uuid.uuid4, editable=False
     )
+    policy_holder = models.ForeignKey(
+        PolicyHolder,
+        on_delete=models.DO_NOTHING,
+        related_name="user_policy_holder_logs",
+        null=True,
+    )
+    fosa = models.ForeignKey(
+        HealthFacility,
+        on_delete=models.DO_NOTHING,
+        related_name="audit_fosa_logs",
+        null=True,
+    )
     user = models.ForeignKey(
-        User, on_delete=models.DO_NOTHING, related_name="audit_logs"
+        User, on_delete=models.DO_NOTHING, related_name="audit_logs", null=True
     )
     action = models.CharField(max_length=255, null=True)
     timestamp = models.DateTimeField(auto_now_add=True)
-    details = models.TextField()
+    details = models.JSONField(null=True)
 
     def __str__(self):
         return f"Audit log for {self.user.username} at {self.timestamp}"

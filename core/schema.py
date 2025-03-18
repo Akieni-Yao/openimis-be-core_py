@@ -56,6 +56,7 @@ from .models import (
     MutationLog,
     Language,
     RoleMutation,
+    UserAuditLog,
     UserMutation,
     GenericConfig,
     AuditLogs,
@@ -606,6 +607,19 @@ class BanksType(DjangoObjectType):
         connection_class = ExtendedConnection
 
 
+class UserAuditLogGQLType(DjangoObjectType):
+    class Meta:
+        model = UserAuditLog
+        interfaces = (graphene.relay.Node,)
+        filter_fields = {
+            "id": ["exact"],
+            "policy_holder__code": ["exact"],
+            "fosa__fosa_code": ["exact"],
+            "user__username": ["exact", "istartswith", "icontains", "iexact"],
+            "action": ["exact", "istartswith", "icontains", "iexact"],
+        }
+        connection_class = ExtendedConnection
+
 class Query(graphene.ObjectType):
     module_configurations = graphene.List(
         ModuleConfigurationGQLType, validity=graphene.String(), layer=graphene.String()
@@ -766,6 +780,26 @@ class Query(graphene.ObjectType):
         BanksType,
         orderBy=graphene.List(of_type=graphene.String),
     )
+
+    user_audit_logs = OrderedDjangoFilterConnectionField(
+        UserAuditLogGQLType,
+        orderBy=graphene.List(of_type=graphene.String),
+        policy_holder_id=graphene.Int(),
+        fosa_id=graphene.Int(),
+    )
+    
+    def resolve_user_audit_logs(self, info, **kwargs):
+        policy_holder_id = kwargs.get("policy_holder_id", None)
+        fosa_id = kwargs.get("fosa_id", None)
+        user_id = kwargs.get("user_id", None)
+        query = UserAuditLog.objects.all()
+        if policy_holder_id:
+            query = query.filter(policy_holder__code=policy_holder_id)
+        if fosa_id:
+            query = query.filter(fosa__fosa_code=fosa_id)
+        if user_id:
+            query = query.filter(user__id=user_id)
+        return gql_optimizer.query(query, info)
 
     def resolve_banks(self, info, **kwargs):
         id = kwargs.get("id", None)

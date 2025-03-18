@@ -1,4 +1,5 @@
 import logging
+import json
 from datetime import datetime
 from gettext import gettext as _
 
@@ -19,7 +20,7 @@ from django.http import JsonResponse
 
 from core.apps import CoreConfig
 from core.constants import APPROVER_ROLE
-from core.models import User, InteractiveUser, Officer, UserRole, Role
+from core.models import User, InteractiveUser, Officer, UserAuditLog, UserRole, Role
 from core.validation.obligatoryFieldValidation import (
     validate_payload_for_obligatory_fields,
 )
@@ -28,6 +29,7 @@ from policyholder.portal_utils import (
     make_portal_reset_password_link,
     new_user_welcome_email,
 )
+from location.models import HealthFacility
 
 logger = logging.getLogger(__file__)
 
@@ -104,10 +106,11 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
         created = True
 
     i_user.save()
+    
     if created:
         verification_url = None
-        
-        # for subscriber portal the email is sent once the policyholderUser is created 
+
+        # for subscriber portal the email is sent once the policyholderUser is created
         # The code can be found in policyholder module
 
         if data.get("is_fosa_user"):
@@ -120,6 +123,8 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
         new_user_welcome_email(i_user, verification_url)
 
         print("=====> send new_user_welcome_email Done")
+        
+    create_audit_user_service(i_user, created, user_id, data)    
 
     create_or_update_user_roles(i_user, data["roles"], audit_user_id)
     if "districts" in data:
@@ -127,6 +132,25 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
             i_user, data["districts"], data_subset["audit_user_id"]
         )
     return i_user, created
+
+
+def  create_audit_user_service(i_user, created, user_id, data):
+        data = {
+            "user_id": i_user.id,
+            "details": json.dumps(data),
+            "action": "Création d'un utilisateur" if created else "Modification d'un utilisateur"
+        }
+        if user_id:
+            policy_holder = PolicyHolderUser.objects.filter(user_id=user_id).first()
+            if policy_holder:
+                data["policy_holder"] = policy_holder
+        if i_user.health_facility_id:
+            health_facility = HealthFacility.objects.filter(
+                id=i_user.health_facility_id
+            ).first()
+            data["fosa"] = health_facility
+            
+        UserAuditLog.objects.create(**data)
 
 
 def create_or_update_user_roles(i_user, role_ids, audit_user_id):
