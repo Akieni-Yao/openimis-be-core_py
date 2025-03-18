@@ -142,10 +142,16 @@ def create_audit_user_service(i_user, created, user_id, data):
     audit_data = data.copy()
     if 'validity_from' in audit_data:
         audit_data['validity_from'] = audit_data['validity_from'].isoformat() if audit_data['validity_from'] else None
+        
+    audit_data['user_id'] = i_user.id
 
     # convert json to text
+    user = InteractiveUser.objects.filter(
+            validity_to__isnull=True, user__id=data['audit_user_id']
+        ).first()
+    
     data = {
-        "user_id": i_user.id,
+        "user": user,
         "details": json.dumps(audit_data),
         "action": "Création d'un utilisateur" if created else "Modification d'un utilisateur"
     }
