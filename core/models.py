@@ -1522,7 +1522,7 @@ class UserAuditLog(models.Model):
     )
     action = models.CharField(max_length=255, null=True)
     timestamp = models.DateTimeField(auto_now_add=True)
-    details = models.JSONField(null=True)
+    details = models.TextField(null=True)
 
     def __str__(self):
         return f"Audit log for {self.user.username} at {self.timestamp}"
