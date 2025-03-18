@@ -136,8 +136,6 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
 
 def create_audit_user_service(i_user, created, user_id, data):
     print("=====> create_audit_user_service Start")
-    print(data)
-    
     # Create a copy of data and convert datetime to string
     audit_data = data.copy()
     if 'validity_from' in audit_data:
@@ -154,26 +152,19 @@ def create_audit_user_service(i_user, created, user_id, data):
         "user": user,
         "details": json.dumps(audit_data),
         "action": "Création d'un utilisateur" if created else "Modification d'un utilisateur"
-    }
-    
-    print("=====> create_audit_user_service Start")
-    print(data)
+    }    
     
     if user_id:
         policy_holder_user = PolicyHolderUser.objects.filter(user_id=user_id).first()
         if policy_holder_user:
             data["policy_holder"] = policy_holder_user.policy_holder
             print("=====> policy_holder")
-            print(data)
     if i_user.health_facility_id:
         health_facility = HealthFacility.objects.filter(
             id=i_user.health_facility_id
         ).first()
         print("=====> health_facility")
-        print(health_facility)
         data["fosa"] = health_facility
-        print("=====> data")
-        print(data)
         
     UserAuditLog.objects.create(**data)
     print("=====> UserAuditLog created")
