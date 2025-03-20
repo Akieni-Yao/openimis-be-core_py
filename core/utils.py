@@ -1,3 +1,5 @@
+import os
+
 import core
 import graphene
 import qrcode
@@ -323,7 +325,7 @@ def update_or_create_resync(id, user):
     import json
     headers = {
         'Content-Type': 'application/json',
-        'Tmr-Api-Key': 'test',
+        'Tmr-Api-Key': os.environ.get("TMR_API_KEY", "1234"),
         'Cookie': 'frontend_lang=en_US'
     }
 
