@@ -56,6 +56,7 @@ from .models import (
     MutationLog,
     Language,
     RoleMutation,
+    UserAuditLog,
     UserMutation,
     GenericConfig,
     AuditLogs,
@@ -606,6 +607,19 @@ class BanksType(DjangoObjectType):
         connection_class = ExtendedConnection
 
 
+class UserAuditLogGQLType(DjangoObjectType):
+    class Meta:
+        model = UserAuditLog
+        interfaces = (graphene.relay.Node,)
+        filter_fields = {
+            "id": ["exact"],
+            "policy_holder__code": ["exact"],
+            "fosa__fosa_code": ["exact"],
+            "user__username": ["exact", "istartswith", "icontains", "iexact"],
+            "action": ["exact", "istartswith", "icontains", "iexact"],
+        }
+        connection_class = ExtendedConnection
+
 class Query(graphene.ObjectType):
     module_configurations = graphene.List(
         ModuleConfigurationGQLType, validity=graphene.String(), layer=graphene.String()
@@ -766,6 +780,26 @@ class Query(graphene.ObjectType):
         BanksType,
         orderBy=graphene.List(of_type=graphene.String),
     )
+
+    user_audit_logs = OrderedDjangoFilterConnectionField(
+        UserAuditLogGQLType,
+        orderBy=graphene.List(of_type=graphene.String),
+        policy_holder_id=graphene.Int(),
+        fosa_id=graphene.Int(),
+    )
+    
+    def resolve_user_audit_logs(self, info, **kwargs):
+        policy_holder_id = kwargs.get("policy_holder_id", None)
+        fosa_id = kwargs.get("fosa_id", None)
+        user_id = kwargs.get("user_id", None)
+        query = UserAuditLog.objects.all()
+        if policy_holder_id:
+            query = query.filter(policy_holder__code=policy_holder_id)
+        if fosa_id:
+            query = query.filter(fosa__fosa_code=fosa_id)
+        if user_id:
+            query = query.filter(user__id=user_id)
+        return gql_optimizer.query(query, info)
 
     def resolve_banks(self, info, **kwargs):
         id = kwargs.get("id", None)
@@ -1524,6 +1558,8 @@ class UserBase:
     password = graphene.String(required=False)
     current_password = graphene.String(required=False)
     health_facility_id = graphene.Int(required=False)
+    policy_holder_id = graphene.String(required=False)
+    date_valid_from = graphene.String(required=False)
     districts = graphene.List(graphene.Int, required=False)
     language = graphene.String(required=True, description="Language code for the user")
     # Interactive User only
@@ -1657,6 +1693,7 @@ def update_or_create_user(data, user):
 
     # FOSA USER ACTIVE IS TRUE FOR IS_FOSA_USER AND VERIFY TRUE
     data["is_fosa_user"] = True if data.get("health_facility_id") is not None else False
+    data['is_portal_user'] = True if data.get('policy_holder_id') is not None else False
 
     incoming_email = data.get("email")
     current_user = None
