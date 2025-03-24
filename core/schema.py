@@ -1768,6 +1768,7 @@ def update_or_create_user(data, user):
         claim_admin=claim_admin,
         station=station,
         is_fosa_user=data["is_fosa_user"],
+        is_portal_user=data["is_portal_user"],
     )
     
     # create policy holder user
@@ -1786,7 +1787,7 @@ def update_or_create_user(data, user):
         print(f"======> create policy holder user object_data: {object_data}")
         
         info_user = InteractiveUser.objects.filter(
-            validity_to__isnull=True, user__id=user.id_for_audit
+            validity_to__isnull=True, user__id=user.id
         ).first()
         
         print(f"======> create policy holder user info_user: {info_user}")

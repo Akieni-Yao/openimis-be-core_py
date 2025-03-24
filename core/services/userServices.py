@@ -320,6 +320,7 @@ def create_or_update_core_user(
     claim_admin=None,
     station=None,
     is_fosa_user=None,
+    is_portal_user=None,
 ):
     if user_uuid:
         # This intentionally fails if the provided uuid doesn't exist as we don't want clients to set it
@@ -351,6 +352,8 @@ def create_or_update_core_user(
 
     if is_fosa_user is not None:
         user.is_fosa_user = is_fosa_user
+    if is_portal_user is not None:
+        user.is_portal_user = is_portal_user
     user.save()
     return user, created
 
