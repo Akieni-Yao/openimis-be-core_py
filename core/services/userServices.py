@@ -359,9 +359,9 @@ def create_or_update_core_user(
     if station:
         user.station = station
 
-    if is_fosa_user is not None:
+    if is_fosa_user is True:
         user.is_fosa_user = is_fosa_user
-    if is_portal_user is not None:
+    if is_portal_user is True:
         user.is_portal_user = is_portal_user
     user.save()
     return user, created
