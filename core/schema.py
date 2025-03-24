@@ -1812,7 +1812,7 @@ def update_or_create_user(data, user):
             core_user_created,
             core_user.id,
             data["current_user_id"],
-            object_data,
+            data,
         )
     # create policy holder user
 
