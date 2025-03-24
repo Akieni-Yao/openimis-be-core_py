@@ -65,7 +65,7 @@ from .models import (
     Banks,
 )
 from .services.roleServices import check_role_unique_name
-from .services.userServices import check_user_unique_email
+from .services.userServices import check_user_unique_email, create_audit_user_service
 from .validation.obligatoryFieldValidation import validate_payload_for_obligatory_fields
 from location.models import HealthFacility
 
@@ -620,6 +620,7 @@ class UserAuditLogGQLType(DjangoObjectType):
         }
         connection_class = ExtendedConnection
 
+
 class Query(graphene.ObjectType):
     module_configurations = graphene.List(
         ModuleConfigurationGQLType, validity=graphene.String(), layer=graphene.String()
@@ -787,7 +788,7 @@ class Query(graphene.ObjectType):
         policy_holder_id=graphene.Int(),
         fosa_id=graphene.Int(),
     )
-    
+
     def resolve_user_audit_logs(self, info, **kwargs):
         policy_holder_id = kwargs.get("policy_holder_id", None)
         fosa_id = kwargs.get("fosa_id", None)
@@ -1609,7 +1610,7 @@ class CreateUserMutation(OpenIMISMutation):
 
             data["validity_from"] = TimeUtils.now()
             data["audit_user_id"] = user.id_for_audit
-
+            data["current_user_id"] = user.id
             update_or_create_user(data, user)
             return None
         except Exception as exc:
@@ -1640,6 +1641,7 @@ class UpdateUserMutation(OpenIMISMutation):
 
             data["validity_from"] = TimeUtils.now()
             data["audit_user_id"] = user.id_for_audit
+            data["current_user_id"] = user.id
             update_or_create_user(data, user)
             return None
         except Exception as exc:
@@ -1690,14 +1692,14 @@ class DeleteUserMutation(OpenIMISMutation):
 def update_or_create_user(data, user):
     from policyholder.models import PolicyHolderUser, PolicyHolder
     from core.models import InteractiveUser
-    
+
     client_mutation_id = data.get("client_mutation_id", None)
     # client_mutation_label = data.get("client_mutation_label", None)
 
     # FOSA USER ACTIVE IS TRUE FOR IS_FOSA_USER AND VERIFY TRUE
     data["is_fosa_user"] = True if data.get("health_facility_id") is not None else False
-    data['is_portal_user'] = True if data.get('policy_holder_id') is not None else False
-    
+    data["is_portal_user"] = True if data.get("policy_holder_id") is not None else False
+
     policy_holder_id = (
         data.pop("policy_holder_id") if data.get("policy_holder_id") else None
     )
@@ -1770,36 +1772,48 @@ def update_or_create_user(data, user):
         is_fosa_user=data["is_fosa_user"],
         is_portal_user=data["is_portal_user"],
     )
-    
+
     # create policy holder user
     print("======> create policy holder user")
     if policy_holder_id:
         policy_holder = PolicyHolder.objects.filter(id=policy_holder_id).first()
         if not policy_holder:
             raise ValidationError(_("mutation.policy_holder_not_found"))
-        
+
         object_data = {
             "user": core_user,
             "policy_holder": policy_holder,
             "date_valid_from": date_valid_from,
         }
-        
+
         print(f"======> create policy holder user object_data: {object_data}")
-        
+
         info_user = InteractiveUser.objects.filter(
             validity_to__isnull=True, user__id=user.id
         ).first()
-        
+
         print(f"======> create policy holder user info_user: {info_user}")
-        
+
         check_policy_holder_user = PolicyHolderUser.objects.filter(
             user=core_user, policy_holder=policy_holder
         ).first()
-        
+
+        i_user = InteractiveUser.objects.filter(
+            validity_to__isnull=True, user__id=user.id
+        ).first()
+
         if check_policy_holder_user is None:
             print("======> create policy holder user")
             obj = PolicyHolderUser(**object_data)
             obj.save(username=info_user.username)
+
+        create_audit_user_service(
+            i_user,
+            core_user_created,
+            core_user.id,
+            data["current_user_id"],
+            object_data,
+        )
     # create policy holder user
 
     if client_mutation_id:
