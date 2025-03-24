@@ -1773,7 +1773,7 @@ def update_or_create_user(data, user):
     
     # create policy holder user
     print("======> create policy holder user")
-    if policy_holder_id and core_user_created:
+    if policy_holder_id:
         policy_holder = PolicyHolder.objects.filter(id=policy_holder_id).first()
         if not policy_holder:
             raise ValidationError(_("mutation.policy_holder_not_found"))
@@ -1792,8 +1792,14 @@ def update_or_create_user(data, user):
         
         print(f"======> create policy holder user info_user: {info_user}")
         
-        obj = PolicyHolderUser(**object_data)
-        obj.save(username=info_user.username)
+        check_policy_holder_user = PolicyHolderUser.objects.filter(
+            user=core_user, policy_holder=policy_holder
+        ).first()
+        
+        if check_policy_holder_user is None:
+            print("======> create policy holder user")
+            obj = PolicyHolderUser(**object_data)
+            obj.save(username=info_user.username)
     # create policy holder user
 
     if client_mutation_id:
