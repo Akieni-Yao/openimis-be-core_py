@@ -1688,12 +1688,22 @@ class DeleteUserMutation(OpenIMISMutation):
 @transaction.atomic
 @validate_payload_for_obligatory_fields(CoreConfig.fields_controls_user, "data")
 def update_or_create_user(data, user):
+    from policyholder.models import PolicyHolderUser, PolicyHolder
+    from core.models import InteractiveUser
+    
     client_mutation_id = data.get("client_mutation_id", None)
     # client_mutation_label = data.get("client_mutation_label", None)
 
     # FOSA USER ACTIVE IS TRUE FOR IS_FOSA_USER AND VERIFY TRUE
     data["is_fosa_user"] = True if data.get("health_facility_id") is not None else False
     data['is_portal_user'] = True if data.get('policy_holder_id') is not None else False
+    
+    policy_holder_id = (
+        data.pop("policy_holder_id") if data.get("policy_holder_id") else None
+    )
+    date_valid_from = (
+        data.pop("date_valid_from") if data.get("date_valid_from") else None
+    )
 
     incoming_email = data.get("email")
     current_user = None
@@ -1759,6 +1769,31 @@ def update_or_create_user(data, user):
         station=station,
         is_fosa_user=data["is_fosa_user"],
     )
+    
+    # create policy holder user
+    print("======> create policy holder user")
+    if policy_holder_id and core_user_created:
+        policy_holder = PolicyHolder.objects.filter(id=policy_holder_id).first()
+        if not policy_holder:
+            raise ValidationError(_("mutation.policy_holder_not_found"))
+        
+        object_data = {
+            "user": core_user,
+            "policy_holder": policy_holder,
+            "date_valid_from": date_valid_from,
+        }
+        
+        print(f"======> create policy holder user object_data: {object_data}")
+        
+        info_user = InteractiveUser.objects.filter(
+            validity_to__isnull=True, user__id=user.id_for_audit
+        ).first()
+        
+        print(f"======> create policy holder user info_user: {info_user}")
+        
+        obj = PolicyHolderUser(**object_data)
+        obj.save(username=info_user.username)
+    # create policy holder user
 
     if client_mutation_id:
         UserMutation.object_mutated(
