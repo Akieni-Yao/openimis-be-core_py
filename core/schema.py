@@ -785,8 +785,8 @@ class Query(graphene.ObjectType):
     user_audit_logs = OrderedDjangoFilterConnectionField(
         UserAuditLogGQLType,
         orderBy=graphene.List(of_type=graphene.String),
-        policy_holder_id=graphene.Int(),
-        fosa_id=graphene.Int(),
+        policy_holder_id=graphene.UUID(),
+        fosa_id=graphene.UUID(),
     )
 
     def resolve_user_audit_logs(self, info, **kwargs):
@@ -795,9 +795,9 @@ class Query(graphene.ObjectType):
         user_id = kwargs.get("user_id", None)
         query = UserAuditLog.objects.all()
         if policy_holder_id:
-            query = query.filter(policy_holder__code=policy_holder_id)
+            query = query.filter(policy_holder__id=policy_holder_id)
         if fosa_id:
-            query = query.filter(fosa__fosa_code=fosa_id)
+            query = query.filter(fosa__id=fosa_id)
         if user_id:
             query = query.filter(user__id=user_id)
         return gql_optimizer.query(query, info)
