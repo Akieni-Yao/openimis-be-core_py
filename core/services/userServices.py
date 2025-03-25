@@ -50,12 +50,7 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
         "language": "language_id",
         "health_facility_id": "health_facility_id",
     }
-    policy_holder_id = (
-        data.pop("policy_holder_id") if data.get("policy_holder_id") else None
-    )
-    date_valid_from = (
-        data.pop("date_valid_from") if data.get("date_valid_from") else None
-    )
+
     current_password = (
         data.pop("current_password") if data.get("current_password") else None
     )
@@ -100,55 +95,15 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
     else:
         i_user = InteractiveUser(**data_subset)
         token = uuid.uuid4().hex[:16].upper()
+        # No password provided for creation, will have to be set later.
         i_user.stored_password = "locked"
         i_user.password_reset_token = token
-        # No password provided for creation, will have to be set later.
 
-        # if "password" in data:
-        #     i_user.set_password(data["password"])
-        # else:
-        #     # No password provided for creation, will have to be set later.
-        #     i_user.stored_password = "locked"
         created = True
 
     i_user.save()
 
-    # i_user = InteractiveUser.objects.filter(
-    #     validity_to__isnull=True, login_name=data_subset["login_name"]
-    # ).first()
-
     if created:
-        print("=====> created")
-        print(f"=====> policy_holder_id {policy_holder_id}")
-        if policy_holder_id:
-            print("=====> policy_holder_id")
-            policy_holder = PolicyHolder.objects.filter(id=policy_holder_id).first()
-            print("=====> policy_holder")
-            if not policy_holder:
-                raise ValidationError(_("mutation.policy_holder_not_found"))
-
-            core_user = i_user.user
-            print(f"=====> core_user {core_user}")
-
-            if not core_user:
-                raise ValidationError(_("mutation.core_user_not_found"))
-
-            object_data = {
-                "user": core_user,
-                "policy_holder": policy_holder,
-                "date_valid_from": date_valid_from,
-            }
-
-            print(f"=====> object_data {object_data}")
-
-            info_user = InteractiveUser.objects.filter(
-                validity_to__isnull=True, user__id=data["audit_user_id"]
-            ).first()
-            print("=====> info_user")
-            obj = PolicyHolderUser(**object_data)
-            obj.save(username=info_user.username)
-            print("=====> obj")
-
         verification_url = None
 
         # for subscriber portal the email is sent once the policyholderUser is created
@@ -167,7 +122,9 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
 
         print("=====> send new_user_welcome_email Done")
 
-    create_audit_user_service(i_user, created, user_id, data)
+        print(f"===================> current user id {data['current_user_id']}")
+
+    create_audit_user_service(i_user, created, user_id, data["current_user_id"], data)
 
     create_or_update_user_roles(i_user, data["roles"], audit_user_id)
     if "districts" in data:
@@ -177,7 +134,7 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
     return i_user, created
 
 
-def create_audit_user_service(i_user, created, user_id, data):
+def create_audit_user_service(i_user, created, core_user_id, current_user, data):
     print("=====> create_audit_user_service Start")
     # Create a copy of data and convert datetime to string
     audit_data = data.copy()
@@ -187,24 +144,32 @@ def create_audit_user_service(i_user, created, user_id, data):
             if audit_data["validity_from"]
             else None
         )
+        
+    if "current_user_id" in audit_data:
+        audit_data.pop("current_user_id")
 
     audit_data["user_id"] = i_user.id
 
     # convert json to text
     user = InteractiveUser.objects.filter(
-        validity_to__isnull=True, user__id=data["audit_user_id"]
+        validity_to__isnull=True, user__id=current_user
     ).first()
+    
+    if not user:
+        raise Exception("User not found")
 
     data = {
-        "user": user,
+        "user": user.user,
         "details": json.dumps(audit_data),
         "action": "Création d'un utilisateur"
         if created
         else "Modification d'un utilisateur",
     }
 
-    if user_id:
-        policy_holder_user = PolicyHolderUser.objects.filter(user_id=user_id).first()
+    if core_user_id:
+        policy_holder_user = PolicyHolderUser.objects.filter(
+            user_id=core_user_id
+        ).first()
         if policy_holder_user:
             data["policy_holder"] = policy_holder_user.policy_holder
             print("=====> policy_holder")
@@ -364,6 +329,7 @@ def create_or_update_core_user(
     claim_admin=None,
     station=None,
     is_fosa_user=None,
+    is_portal_user=None,
 ):
     if user_uuid:
         # This intentionally fails if the provided uuid doesn't exist as we don't want clients to set it
@@ -393,8 +359,10 @@ def create_or_update_core_user(
     if station:
         user.station = station
 
-    if is_fosa_user is not None:
+    if is_fosa_user is True:
         user.is_fosa_user = is_fosa_user
+    if is_portal_user is True:
+        user.is_portal_user = is_portal_user
     user.save()
     return user, created
 
