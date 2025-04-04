@@ -344,7 +344,7 @@ class InteractiveUser(VersionedModel):
     )
     last_login = models.DateTimeField(db_column="LastLogin", null=True)
     health_facility_id = models.IntegerField(db_column="HFID", blank=True, null=True)
-    insuree_id = models.ForeignKey(
+    insuree = models.ForeignKey(
         "insuree.Insuree",
         on_delete=models.DO_NOTHING,
         db_column="InsureeID",
