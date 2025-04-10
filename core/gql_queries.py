@@ -1,8 +1,17 @@
 import graphene
 import location.gql_queries
 from core import ExtendedConnection, filter_validity
-from core.models import Officer, Role, RoleRight, UserRole, User, InteractiveUser, UserMutation, Language, \
-    CamuNotification
+from core.models import (
+    Officer,
+    Role,
+    RoleRight,
+    UserRole,
+    User,
+    InteractiveUser,
+    UserMutation,
+    Language,
+    CamuNotification,
+)
 from graphene_django import DjangoObjectType
 from location.models import HealthFacility
 from .apps import CoreConfig
@@ -35,6 +44,7 @@ class OfficerGQLType(DjangoObjectType):
     """
     This type corresponds to the Enrolment Officer but is a bit more generic than just Enrolment.
     """
+
     class Meta:
         model = Officer
         interfaces = (graphene.relay.Node,)
@@ -46,7 +56,7 @@ class OfficerGQLType(DjangoObjectType):
             "other_names": ["exact", "icontains"],
             "dob": ["exact"],
             "station": ["exact"],
-            "station__name": ["exact", "icontains"]
+            "station__name": ["exact", "icontains"],
         }
         connection_class = ExtendedConnection
 
@@ -112,14 +122,20 @@ class InteractiveUserGQLType(DjangoObjectType):
     and Claim Administrators can exist without having web access but when they do, they have a corresponding
     InteractiveUser, linked by their "code" aka "login_name"
     """
+
     language_id = graphene.String()
     health_facility = graphene.Field(
         location.gql_queries.HealthFacilityGQLType,
         description="Health Facility is not a foreign key in the database, this field resolves it manually, use only "
-                    "if necessary.")
-    roles = graphene.List(RoleGQLType, description="Same as userRoles but a straight list, without the M-N relation")
+        "if necessary.",
+    )
+    roles = graphene.List(
+        RoleGQLType,
+        description="Same as userRoles but a straight list, without the M-N relation",
+    )
     station = graphene.Field(StationGQLType)
-    
+    insuree = graphene.Field("insuree.gql_queries.InsureeGQLType")
+
     class Meta:
         model = InteractiveUser
         interfaces = (graphene.relay.Node,)
@@ -141,7 +157,11 @@ class InteractiveUserGQLType(DjangoObjectType):
         if not info.context.user.has_perms(CoreConfig.gql_query_users_perms):
             raise PermissionDenied(_("unauthorized"))
         if self.health_facility_id:
-            return HealthFacility.get_queryset(None, info).filter(pk=self.health_facility_id).first()
+            return (
+                HealthFacility.get_queryset(None, info)
+                .filter(pk=self.health_facility_id)
+                .first()
+            )
         else:
             return None
 
@@ -149,9 +169,9 @@ class InteractiveUserGQLType(DjangoObjectType):
         if not info.context.user.is_authenticated:
             raise PermissionDenied(_("unauthorized"))
         if self.user_roles:
-            return Role.objects\
-                .filter(validity_to__isnull=True)\
-                .filter(user_roles__user_id=self.id, user_roles__validity_to__isnull=True)
+            return Role.objects.filter(validity_to__isnull=True).filter(
+                user_roles__user_id=self.id, user_roles__validity_to__isnull=True
+            )
         else:
             return None
 
@@ -174,6 +194,7 @@ class UserGQLType(DjangoObjectType):
     to the core_User table added in the modular version. The TechnicalUser is for now not exposed here as it is not
     managed through this API.
     """
+
     client_mutation_id = graphene.String()
     rights = graphene.List(graphene.String)
     health_facility = graphene.Field(location.gql_queries.HealthFacilityGQLType)
@@ -182,8 +203,8 @@ class UserGQLType(DjangoObjectType):
     email = graphene.String()
     phone = graphene.String()
     station = graphene.Field(StationGQLType)
-    is_fosa_user = graphene.Boolean(),
-    is_portal_user = graphene.Boolean(),
+    is_fosa_user = (graphene.Boolean(),)
+    is_portal_user = (graphene.Boolean(),)
 
     class Meta:
         model = User
@@ -203,7 +224,9 @@ class UserGQLType(DjangoObjectType):
     def resolve_client_mutation_id(self, info):
         if not info.context.user.has_perms(CoreConfig.gql_query_users_perms):
             raise PermissionDenied(_("unauthorized"))
-        user_mutation = self.mutations.select_related('mutation').filter(mutation__status=0).first()
+        user_mutation = (
+            self.mutations.select_related("mutation").filter(mutation__status=0).first()
+        )
         return user_mutation.mutation.client_mutation_id if user_mutation else None
 
 
@@ -226,6 +249,7 @@ class UserMutationGQLType(DjangoObjectType):
     This intermediate object links Mutations to Users. Beware of the confusion between the user performing the mutation
     and the users affected by that mutation, the latter being listed in this object.
     """
+
     class Meta:
         model = UserMutation
 
@@ -236,7 +260,7 @@ class LanguageGQLType(DjangoObjectType):
         filter_fields = {
             "language_code": ["exact"],
             "name": ["exact"],
-            "sort_order": ["exact"]
+            "sort_order": ["exact"],
         }
 
     @classmethod
@@ -248,6 +272,7 @@ class ValidationMessageGQLType(graphene.ObjectType):
     """
     This object is used for validation of user's input in forms (e.g. insuree code).
     """
+
     is_valid = graphene.Boolean()
     error_code = graphene.Int()
     error_message = graphene.String()
