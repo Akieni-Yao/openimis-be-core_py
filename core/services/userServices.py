@@ -30,6 +30,7 @@ from policyholder.portal_utils import (
     new_user_welcome_email,
 )
 from location.models import HealthFacility
+from insuree.models import Insuree
 
 logger = logging.getLogger(__file__)
 
@@ -63,6 +64,10 @@ def create_or_update_interactive_user(user_id, data, audit_user_id, connected):
         0
     ]  # The actual roles are stored in their own table
     data_subset["is_associated"] = connected
+
+    if data.get("insuree_id"):
+        insuree_id = int(data.get("insuree_id"))
+        data_subset["insuree"] = Insuree.objects.filter(id=insuree_id).first()
 
     # IS VERIFIED FOR FOSA USERS
     is_fosa_user = (
@@ -144,7 +149,7 @@ def create_audit_user_service(i_user, created, core_user_id, current_user, data)
             if audit_data["validity_from"]
             else None
         )
-        
+
     if "current_user_id" in audit_data:
         audit_data.pop("current_user_id")
 
@@ -154,7 +159,7 @@ def create_audit_user_service(i_user, created, core_user_id, current_user, data)
     user = InteractiveUser.objects.filter(
         validity_to__isnull=True, user__id=current_user
     ).first()
-    
+
     if not user:
         raise Exception("User not found")
 

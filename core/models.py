@@ -344,7 +344,13 @@ class InteractiveUser(VersionedModel):
     )
     last_login = models.DateTimeField(db_column="LastLogin", null=True)
     health_facility_id = models.IntegerField(db_column="HFID", blank=True, null=True)
-
+    insuree = models.ForeignKey(
+        "insuree.Insuree",
+        on_delete=models.DO_NOTHING,
+        db_column="InsureeID",
+        blank=True,
+        null=True,
+    )
     audit_user_id = models.IntegerField(db_column="AuditUserID")
     # dummy_pwd is always blank. It is actually a transient field used in the Legacy to pass the clear text password in
     # a User object from the ASPX to the DAL where it is processed into/against password and private key/salt)

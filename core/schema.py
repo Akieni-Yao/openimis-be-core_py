@@ -1560,6 +1560,7 @@ class UserBase:
     current_password = graphene.String(required=False)
     health_facility_id = graphene.Int(required=False)
     policy_holder_id = graphene.String(required=False)
+    insuree_id = graphene.Int(required=False)
     date_valid_from = graphene.String(required=False)
     districts = graphene.List(graphene.Int, required=False)
     language = graphene.String(required=True, description="Language code for the user")
