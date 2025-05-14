@@ -1,21 +1,20 @@
+import base64
+import logging
 import os
+import time
+from io import BytesIO
 
-import core
 import graphene
 import qrcode
 import requests
-import time
-import base64
-from io import BytesIO
-from PIL import Image
+from django.apps import apps
 from django.conf import settings
+from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.utils.translation import gettext as _
-import logging
-from django.apps import apps
-from django.core.exceptions import PermissionDenied
+from PIL import Image
 
-
+import core
 
 logger = logging.getLogger(__file__)
 
@@ -182,6 +181,7 @@ PATIENT_CATEGORY_MASK_MINOR = 8
 def patient_category_mask(insuree, target_date):
     if type(target_date) is str:
         from core import datetime
+
         # TODO: this should be nicer
         target_date = datetime.date(*[int(x) for x in target_date.split("-")])
     mask = 0
@@ -272,10 +272,13 @@ def insert_role_right_for_system(system_role, right_id):
     Role = apps.get_model("core", "Role")
     existing_role = Role.objects.filter(is_system=system_role).first()
     if not existing_role:
-        logger.warning("Migration requested a role_right for system role %s but couldn't find that role", system_role)
-    role_right = RoleRight.objects.filter(role=existing_role, right_id=right_id).first()
+        logger.warning(
+            "Migration requested a role_right for system role %s but couldn't find that role", system_role)
+    role_right = RoleRight.objects.filter(
+        role=existing_role, right_id=right_id).first()
     if not role_right:
-        role_right = RoleRight.objects.create(role=existing_role, right_id=right_id)
+        role_right = RoleRight.objects.create(
+            role=existing_role, right_id=right_id)
 
     return role_right
 
@@ -299,7 +302,8 @@ def generate_qr(data):
 def create_notification(user_id, message, redirect_url):
     from core.models import CamuNotification, User
     user = User.objects.get(id=user_id)
-    notification = CamuNotification.objects.create(user=user, message=message, redirect_url=redirect_url)
+    notification = CamuNotification.objects.create(
+        user=user, message=message, redirect_url=redirect_url)
     return notification
 
 
@@ -313,16 +317,19 @@ def mark_notification_as_read(notification_id):
 
 def mark_all_notifications_as_read(user_id):
     from core.models import CamuNotification
-    notifications = CamuNotification.objects.filter(user_id=user_id, is_read=False)
+    notifications = CamuNotification.objects.filter(
+        user_id=user_id, is_read=False)
     notifications.update(is_read=True)
     return notifications
 
 
 def update_or_create_resync(id, user):
-    from core.models import ErpApiFailedLogs
-    from policyholder.models import PolicyHolder
-    from datetime import datetime
     import json
+    from datetime import datetime
+
+    from policyholder.models import PolicyHolder
+
+    from core.models import ErpApiFailedLogs
     headers = {
         'Content-Type': 'application/json',
         'Tmr-Api-Key': os.environ.get("TMR_API_KEY", "1234"),
@@ -333,27 +340,40 @@ def update_or_create_resync(id, user):
         # Find the object using find_object_without_resync with status 0
         erp_logs_to_resync = find_object_without_resync(id)
         if not erp_logs_to_resync:
-            logger.error(f"ERP API Failed logs with ID {id} not found or already resynced")
+            logger.error(
+                f"ERP API Failed logs with ID {id} not found or already resynced")
             raise ValueError("Data not found or already resynced.")
 
         if erp_logs_to_resync.module == 'policyholder':
-            policyholder_data = PolicyHolder.objects.filter(id=erp_logs_to_resync.policy_holder.id, is_deleted=False).first()
+            policyholder_data = PolicyHolder.objects.filter(
+                id=erp_logs_to_resync.policy_holder.id, is_deleted=False).first()
             if policyholder_data and policyholder_data.erp_partner_access_id:
                 erp_logs_to_resync.resync_status = 1
-                erp_logs_to_resync.message = json.dumps({"message": "Already resynced"})
+                erp_logs_to_resync.message = json.dumps(
+                    {"message": "Already resynced"})
                 erp_logs_to_resync.resync_at = datetime.now()
                 erp_logs_to_resync.resync_by = user
                 erp_logs_to_resync.save()
-                logger.info(f"Successfully resynced ERP failed logs with ID {id} for policyholder.")
+                logger.info(
+                    f"Successfully resynced ERP failed logs with ID {id} for policyholder.")
                 return erp_logs_to_resync
             else:
-                logger.info(f"No valid erp_partner_access_id found for policyholder with ID {erp_logs_to_resync.policy_holder.id}. Proceeding with the original resync logic.")
+                logger.info(
+                    f"No valid erp_partner_access_id found for policyholder with ID {erp_logs_to_resync.policy_holder.id}. Proceeding with the original resync logic.")
 
         logger.info(f"Updating ERP Failed logs with ID {id}")
+
+        if erp_logs_to_resync.module == 'contract':
+            contract = erp_logs_to_resync.contract
+            policy_holder = contract.policy_holder
+            customer_id = policy_holder.erp_partner_id if policy_holder \
+                else None
+            erp_logs_to_resync.request_data['customer_id'] = customer_id
+
         url = erp_logs_to_resync.request_url
         json_data = erp_logs_to_resync.request_data
-
-        response = requests.post(url, headers=headers, json=json_data, verify=False)
+        response = requests.post(url, headers=headers,
+                                 json=json_data, verify=False)
 
         if response.status_code in [200, 201]:
             # Update the original entry with resync_status = 1
@@ -397,7 +417,8 @@ def update_or_create_resync(id, user):
             resynced_erp_logs.parent = erp_logs_to_resync
             resynced_erp_logs.save()
 
-            logger.info(f"Created new ERP failed logs entry due to failed resync with ID {id}")
+            logger.info(
+                f"Created new ERP failed logs entry due to failed resync with ID {id}")
             return erp_logs_to_resync.resync_status
 
     else:
@@ -405,11 +426,11 @@ def update_or_create_resync(id, user):
         raise ValueError("ID argument is required for resync operation.")
 
 
-
 def find_object_without_resync(id):
     from core.models import ErpApiFailedLogs
     try:
-        obj = ErpApiFailedLogs.objects.get(pk=id, resync_status=0)  # Fetch object with status 0
+        obj = ErpApiFailedLogs.objects.get(
+            pk=id, resync_status=0)  # Fetch object with status 0
     except ErpApiFailedLogs.DoesNotExist:
         return None
 
