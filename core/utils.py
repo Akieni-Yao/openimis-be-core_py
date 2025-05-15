@@ -372,7 +372,7 @@ def update_or_create_resync(id, user):
 
         elif erp_logs_to_resync.module == 'penalty':
             payment_penalty = erp_logs_to_resync.payment_penalty
-            customer_id = payment_penalty.erp_partner_id if payment_penalty \
+            customer_id = payment_penalty.erp_penalty_id if payment_penalty \
                 else None
             erp_logs_to_resync.request_data['customer_id'] = customer_id
 
