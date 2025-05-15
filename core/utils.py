@@ -365,8 +365,14 @@ def update_or_create_resync(id, user):
 
         if erp_logs_to_resync.module == 'contract':
             contract = erp_logs_to_resync.contract
-            policy_holder = contract.policy_holder
+            policy_holder = contract.policy_holde
             customer_id = policy_holder.erp_partner_id if policy_holder \
+                else None
+            erp_logs_to_resync.request_data['customer_id'] = customer_id
+
+        elif erp_logs_to_resync.module == 'penalty':
+            payment_penalty = erp_logs_to_resync.payment_penalty
+            customer_id = payment_penalty.erp_partner_id if payment_penalty \
                 else None
             erp_logs_to_resync.request_data['customer_id'] = customer_id
 
